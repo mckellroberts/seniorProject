@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>File Upload</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #f1f5f9;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 2rem;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #2d3148;
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.05);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .drop-zone p {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .drop-zone span {
+      color: #6366f1;
+      font-weight: 500;
+    }
+
+    /* File list */
+    .file-list {
+      margin-top: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #12151f;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.85rem;
+    }
+
+    .file-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .file-info { flex: 1; overflow: hidden; }
+
+    .file-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #e2e8f0;
+    }
+
+    .file-size { color: #64748b; font-size: 0.75rem; margin-top: 1px; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #475569;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .remove-btn:hover { color: #ef4444; }
+
+    /* Upload button */
+    .upload-btn {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.8rem;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    .upload-btn:hover:not(:disabled) { background: #4f52d9; }
+    .upload-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Status */
+    .status {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    .status.success {
+      display: block;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.3);
+      color: #4ade80;
+    }
+
+    .status.error {
+      display: block;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #f87171;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      margin-top: 1rem;
+      height: 6px;
+      background: #2d3148;
+      border-radius: 999px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: #6366f1;
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>📂 Upload Files</h1>
+    <p class="subtitle">Drag & drop or click to select files to upload</p>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple />
+      <div class="drop-icon">⬆️</div>
+      <p><span>Click to browse</span> or drag files here</p>
+    </div>
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <button class="upload-btn" id="uploadBtn" disabled>Upload Files</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const dropZone   = document.getElementById('dropZone');
+    const fileInput  = document.getElementById('fileInput');
+    const fileList   = document.getElementById('fileList');
+    const uploadBtn  = document.getElementById('uploadBtn');
+    const status     = document.getElementById('status');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar  = document.getElementById('progressBar');
+
+    let selectedFiles = [];
+
+    // Drag-and-drop events
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      addFiles([...e.dataTransfer.files]);
+    });
+
+    fileInput.addEventListener('change', () => {
+      addFiles([...fileInput.files]);
+      fileInput.value = '';
+    });
+
+    function addFiles(newFiles) {
+      newFiles.forEach(f => {
+        if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) {
+          selectedFiles.push(f);
+        }
+      });
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileList.innerHTML = '';
+      selectedFiles.forEach((file, i) => {
+        const icon = getFileIcon(file.name);
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `
+          <span class="file-icon">${icon}</span>
+          <div class="file-info">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${formatSize(file.size)}</div>
+          </div>
+          <button class="remove-btn" data-index="${i}" title="Remove">✕</button>
+        `;
+        fileList.appendChild(item);
+      });
+
+      fileList.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedFiles.splice(Number(btn.dataset.index), 1);
+          renderFileList();
+        });
+      });
+
+      uploadBtn.disabled = selectedFiles.length === 0;
+      status.className = 'status';
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      if (selectedFiles.length === 0) return;
+
+      uploadBtn.disabled = true;
+      status.className = 'status';
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      const results = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          const res = await fetch('/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+          results.push({ name: file.name, ok: res.ok, msg: data.message || data.error });
+        } catch (err) {
+          results.push({ name: file.name, ok: false, msg: 'Network error' });
+        }
+
+        progressBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
+      }
+
+      const failed = results.filter(r => !r.ok);
+      if (failed.length === 0) {
+        showStatus('success', `✅ ${results.length} file(s) uploaded successfully!`);
+        selectedFiles = [];
+        renderFileList();
+      } else {
+        showStatus('error', `❌ ${failed.length} file(s) failed: ${failed.map(f => f.name).join(', ')}`);
+        uploadBtn.disabled = false;
+      }
+
+      setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 1200);
+    });
+
+    function showStatus(type, msg) {
+      status.className = `status ${type}`;
+      status.textContent = msg;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+    }
+
+    function getFileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      const map = { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', csv: '📊',
+                    xlsx: '📊', xls: '📊', png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
+                    gif: '🖼️', mp4: '🎬', mp3: '🎵', zip: '🗜️', py: '🐍', js: '📜' };
+      return map[ext] || '📁';
+    }
+  </script>
+</body>
+</html>

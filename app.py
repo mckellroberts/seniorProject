@@ -1,6 +1,6 @@
 import requests, os
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
@@ -10,6 +10,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @app.route('/')
 def home():
     return jsonify({'status': 'API running'})
+
+@app.route('/ui')
+def ui():
+    return send_from_directory('.', 'index.html')
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
