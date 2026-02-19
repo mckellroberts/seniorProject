@@ -29,13 +29,14 @@ def allowedFile(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
 def getUserId(req) -> str:
-    """
-    Placeholder — swap this out for real auth later.
-    Accepts user_id from form data, JSON body, or falls back to 'default'.
-    """
+    try:
+        json_body = req.get_json(silent=True) or {}
+    except Exception:
+        json_body = {}
+
     return (
         req.form.get("user_id")
-        or (req.json or {}).get("user_id")
+        or json_body.get("user_id")
         or "default"
     )
 
@@ -140,7 +141,7 @@ def generate():
 
 
 @app.route("/styleProfile", methods=["GET"])
-def style_profile():
+def styleProfile():
     """Return a summary of the user's detected writing style."""
     from rag.agent import buildStyleProfile
     userId = request.args.get("userId", "default")
