@@ -6,7 +6,7 @@ from flask_cors import CORS
 
 from rag.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
 from rag.tools.vectorStore import ChromaRetriever
-from rag.agent import generateInUserVoice
+from rag.agents.agent import generateInUserVoice
 
 app = Flask(__name__)
 CORS(app)
@@ -143,7 +143,7 @@ def generate():
 @app.route("/styleProfile", methods=["GET"])
 def styleProfile():
     """Return a summary of the user's detected writing style."""
-    from rag.agent import buildStyleProfile
+    from rag.agents.agent import buildStyleProfile
     userId = request.args.get("userId", "default")
     retriever = ChromaRetriever(
         persistDirectory=VECTOR_STORE_DIR,

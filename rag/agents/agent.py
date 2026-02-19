@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import requests
 from pathlib import Path
-from .tools.vectorStore import ChromaRetriever
+from ..tools.vectorStore import ChromaRetriever
 
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
