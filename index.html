@@ -1,334 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>File Upload</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="frontend/style.css" />
+  </head>
 
-    .card {
-      background: #1a1d27;
-      border: 1px solid #2d3148;
-      border-radius: 16px;
-      padding: 2.5rem;
-      width: 100%;
-      max-width: 520px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-    }
+  <body>
 
-    h1 {
-      font-size: 1.4rem;
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-      color: #f1f5f9;
-    }
+    <header class="page-header">
+      <p>Upload your work · train on your words · generate in your style</p>
+    </header>
 
-    .subtitle {
-      font-size: 0.85rem;
-      color: #64748b;
-      margin-bottom: 2rem;
-    }
+    <div class="layout">
 
-    /* Drop zone */
-    .drop-zone {
-      border: 2px dashed #2d3148;
-      border-radius: 12px;
-      padding: 2.5rem 1.5rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-    }
+      <!-- ── LEFT: Upload ── -->
+      <div class="card">
+        <div class="card-title">📂 Your Writing Samples</div>
+        <p class="card-subtitle">Supported: .txt · .pdf · .md · .docx</p>
 
-    .drop-zone:hover,
-    .drop-zone.dragover {
-      border-color: #6366f1;
-      background: rgba(99,102,241,0.05);
-    }
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept=".txt,.pdf,.md,.docx" />
+          <div class="drop-icon">⬆️</div>
+          <p><span>Click to browse</span> or drag files here</p>
+          <p class="drop-hint">The more you upload, the better the voice match</p>
+        </div>
 
-    .drop-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
+        <div class="file-list" id="fileList"></div>
 
-    .drop-icon {
-      font-size: 2.5rem;
-      margin-bottom: 0.75rem;
-    }
+        <div class="progress-wrap" id="uploadProgress">
+          <div class="progress-bar" id="uploadBar"></div>
+        </div>
 
-    .drop-zone p {
-      font-size: 0.9rem;
-      color: #94a3b8;
-    }
+        <button class="btn btn-primary" id="uploadBtn" disabled>Upload Files</button>
+        <div class="status" id="uploadStatus"></div>
+      </div>
 
-    .drop-zone span {
-      color: #6366f1;
-      font-weight: 500;
-    }
+      <!-- ── RIGHT: Generate ── -->
+      <div class="card">
+        <div class="card-title">✍️ Generate</div>
+        <p class="card-subtitle">Describe what you want written</p>
 
-    /* File list */
-    .file-list {
-      margin-top: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
+        <textarea class="prompt-area" id="promptInput"
+          placeholder="e.g. Write the opening paragraph of a short story about a lighthouse keeper who hasn't spoken to anyone in three years..."></textarea>
 
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: #12151f;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
-      padding: 0.65rem 0.9rem;
-      font-size: 0.85rem;
-    }
+        <div class="hint-row">
+          <label>style hint →</label>
+          <input class="hint-input" id="styleHint" type="text" placeholder="e.g. more melancholy, shorter sentences" />
+        </div>
 
-    .file-icon {
-      font-size: 1.3rem;
-      flex-shrink: 0;
-    }
+        <div class="progress-wrap" id="generateProgress">
+          <div class="progress-bar" id="generateBar"></div>
+        </div>
 
-    .file-info { flex: 1; overflow: hidden; }
+        <button class="btn btn-primary" id="generateBtn">Generate</button>
 
-    .file-name {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: #e2e8f0;
-    }
+        <!-- Output -->
+        <div id="outputWrap" style="display:none; margin-top:1.25rem;">
+          <div class="output-header">
+            <span class="style-tag" id="styleTag">style profile ready</span>
+            <button class="copy-btn" id="copyBtn">copy</button>
+          </div>
+          <div class="output-box has-content" id="outputBox"></div>
+          <div class="sources-list" id="sourcesList"></div>
+        </div>
 
-    .file-size { color: #64748b; font-size: 0.75rem; margin-top: 1px; }
+        <div class="status" id="generateStatus"></div>
+      </div>
 
-    .remove-btn {
-      background: none;
-      border: none;
-      color: #475569;
-      cursor: pointer;
-      font-size: 1.1rem;
-      line-height: 1;
-      padding: 2px 4px;
-      border-radius: 4px;
-      transition: color 0.15s;
-    }
-    .remove-btn:hover { color: #ef4444; }
-
-    /* Upload button */
-    .upload-btn {
-      margin-top: 1.5rem;
-      width: 100%;
-      padding: 0.8rem;
-      background: #6366f1;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, opacity 0.2s;
-    }
-
-    .upload-btn:hover:not(:disabled) { background: #4f52d9; }
-    .upload-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-    /* Status */
-    .status {
-      margin-top: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      display: none;
-    }
-
-    .status.success {
-      display: block;
-      background: rgba(34,197,94,0.1);
-      border: 1px solid rgba(34,197,94,0.3);
-      color: #4ade80;
-    }
-
-    .status.error {
-      display: block;
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
-      color: #f87171;
-    }
-
-    /* Progress bar */
-    .progress-wrap {
-      margin-top: 1rem;
-      height: 6px;
-      background: #2d3148;
-      border-radius: 999px;
-      overflow: hidden;
-      display: none;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: #6366f1;
-      width: 0%;
-      border-radius: 999px;
-      transition: width 0.3s ease;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>📂 Upload Files</h1>
-    <p class="subtitle">Drag & drop or click to select files to upload</p>
-
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" multiple />
-      <div class="drop-icon">⬆️</div>
-      <p><span>Click to browse</span> or drag files here</p>
     </div>
 
-    <div class="file-list" id="fileList"></div>
+    <script>
+      const USER_ID = "default";
+      let selectedFiles = [];
 
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+      const fileList = document.getElementById('fileList');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const uploadStatus = document.getElementById('uploadStatus');
+      const uploadProgress = document.getElementById('uploadProgress');
+      const uploadBar = document.getElementById('uploadBar');
 
-    <button class="upload-btn" id="uploadBtn" disabled>Upload Files</button>
-    <div class="status" id="status"></div>
-  </div>
+      const promptInput = document.getElementById('promptInput');
+      const styleHintInput = document.getElementById('styleHint');
+      const generateBtn = document.getElementById('generateBtn');
+      const generateStatus = document.getElementById('generateStatus');
+      const generateProgress = document.getElementById('generateProgress');
+      const generateBar = document.getElementById('generateBar');
+      const outputWrap = document.getElementById('outputWrap');
+      const outputBox = document.getElementById('outputBox');
+      const styleTag = document.getElementById('styleTag');
+      const sourcesList = document.getElementById('sourcesList');
+      const copyBtn = document.getElementById('copyBtn');
 
-  <script>
-    const dropZone   = document.getElementById('dropZone');
-    const fileInput  = document.getElementById('fileInput');
-    const fileList   = document.getElementById('fileList');
-    const uploadBtn  = document.getElementById('uploadBtn');
-    const status     = document.getElementById('status');
-    const progressWrap = document.getElementById('progressWrap');
-    const progressBar  = document.getElementById('progressBar');
-
-    let selectedFiles = [];
-
-    // Drag-and-drop events
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      addFiles([...e.dataTransfer.files]);
-    });
-
-    fileInput.addEventListener('change', () => {
-      addFiles([...fileInput.files]);
-      fileInput.value = '';
-    });
-
-    function addFiles(newFiles) {
-      newFiles.forEach(f => {
-        if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) {
-          selectedFiles.push(f);
-        }
+      // ── Upload ─────────────────────────────────────────────────────────────
+      dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        addFiles([...e.dataTransfer.files]);
       });
-      renderFileList();
-    }
+      fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
 
-    function renderFileList() {
-      fileList.innerHTML = '';
-      selectedFiles.forEach((file, i) => {
-        const icon = getFileIcon(file.name);
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `
-          <span class="file-icon">${icon}</span>
+      function addFiles(newFiles) {
+        newFiles.forEach(f => {
+          if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f);
+        });
+        renderFileList();
+      }
+
+      function renderFileList() {
+        fileList.innerHTML = '';
+        selectedFiles.forEach((file, i) => {
+          const item = document.createElement('div');
+          item.className = 'file-item';
+          item.innerHTML = `
+          <span class="file-icon">${getFileIcon(file.name)}</span>
           <div class="file-info">
             <div class="file-name">${file.name}</div>
             <div class="file-size">${formatSize(file.size)}</div>
           </div>
-          <button class="remove-btn" data-index="${i}" title="Remove">✕</button>
+          <button class="remove-btn" data-index="${i}" title="Remove">&#x2715;</button>
         `;
-        fileList.appendChild(item);
-      });
-
-      fileList.querySelectorAll('.remove-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          selectedFiles.splice(Number(btn.dataset.index), 1);
-          renderFileList();
+          fileList.appendChild(item);
         });
-      });
+        fileList.querySelectorAll('.remove-btn').forEach(btn =>
+          btn.addEventListener('click', () => {
+            selectedFiles.splice(Number(btn.dataset.index), 1);
+            renderFileList();
+          })
+        );
+        uploadBtn.disabled = selectedFiles.length === 0;
+        uploadStatus.className = 'status';
+      }
 
-      uploadBtn.disabled = selectedFiles.length === 0;
-      status.className = 'status';
-    }
+      uploadBtn.addEventListener('click', async () => {
+        if (!selectedFiles.length) return;
+        uploadBtn.disabled = true;
+        uploadStatus.className = 'status';
+        uploadProgress.style.display = 'block';
+        uploadBar.style.width = '0%';
 
-    uploadBtn.addEventListener('click', async () => {
-      if (selectedFiles.length === 0) return;
-
-      uploadBtn.disabled = true;
-      status.className = 'status';
-      progressWrap.style.display = 'block';
-      progressBar.style.width = '0%';
-
-      const results = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-          const res = await fetch('/upload', { method: 'POST', body: formData });
-          const data = await res.json();
-          results.push({ name: file.name, ok: res.ok, msg: data.message || data.error });
-        } catch (err) {
-          results.push({ name: file.name, ok: false, msg: 'Network error' });
+        const results = [];
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const formData = new FormData();
+          formData.append('file', selectedFiles[i]);
+          formData.append('user_id', USER_ID);
+          try {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            results.push({ name: selectedFiles[i].name, ok: res.ok, msg: data.message || data.error });
+          } catch {
+            results.push({ name: selectedFiles[i].name, ok: false, msg: 'Network error' });
+          }
+          uploadBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
         }
 
-        progressBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
+        const failed = results.filter(r => !r.ok);
+        if (!failed.length) {
+          showStatus(uploadStatus, 'success', `✓ ${results.length} file(s) uploaded and indexed`);
+          selectedFiles = [];
+          renderFileList();
+        } else {
+          showStatus(uploadStatus, 'error', `✗ Failed: ${failed.map(f => f.name).join(', ')}`);
+          uploadBtn.disabled = false;
+        }
+        setTimeout(() => { uploadProgress.style.display = 'none'; uploadBar.style.width = '0%'; }, 1200);
+      });
+
+      // ── Generate ───────────────────────────────────────────────────────────
+      generateBtn.addEventListener('click', async () => {
+        const prompt = promptInput.value.trim();
+        if (!prompt) {
+          showStatus(generateStatus, 'error', '✗ Please enter a prompt first');
+          return;
+        }
+
+        generateBtn.disabled = true;
+        generateStatus.className = 'status';
+        outputWrap.style.display = 'none';
+        generateProgress.style.display = 'block';
+
+        let prog = 0;
+        const ticker = setInterval(() => {
+          prog = Math.min(prog + Math.random() * 8, 85);
+          generateBar.style.width = `${prog}%`;
+        }, 400);
+
+        try {
+          const res = await fetch('/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: prompt,
+              userId: USER_ID,
+              styleHint: styleHintInput.value.trim(),
+            }),
+          });
+          const data = await res.json();
+
+          if (!res.ok || data.error) {
+            showStatus(generateStatus, 'error', `✗ ${data.error || 'Generation failed'}`);
+          } else {
+            outputBox.textContent = data.generatedText || '';
+            styleTag.textContent = data.styleProfile?.summary
+              ? `style: ${data.styleProfile.summary.slice(0, 60)}...`
+              : 'style profile applied';
+            sourcesList.textContent = data.sourcesUsed?.length
+              ? `sourced from: ${data.sourcesUsed.join(', ')}`
+              : '';
+            outputWrap.style.display = 'block';
+          }
+        } catch {
+          showStatus(generateStatus, 'error', '✗ Network error — is the server running?');
+        } finally {
+          clearInterval(ticker);
+          generateBar.style.width = '100%';
+          setTimeout(() => { generateProgress.style.display = 'none'; generateBar.style.width = '0%'; }, 500);
+          generateBtn.disabled = false;
+        }
+      });
+
+      promptInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateBtn.click();
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(outputBox.textContent);
+        copyBtn.textContent = 'copied!';
+        setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500);
+      });
+
+      function showStatus(el, type, msg) {
+        el.className = `status ${type}`;
+        el.textContent = msg;
       }
 
-      const failed = results.filter(r => !r.ok);
-      if (failed.length === 0) {
-        showStatus('success', `✅ ${results.length} file(s) uploaded successfully!`);
-        selectedFiles = [];
-        renderFileList();
-      } else {
-        showStatus('error', `❌ ${failed.length} file(s) failed: ${failed.map(f => f.name).join(', ')}`);
-        uploadBtn.disabled = false;
+      function formatSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
       }
 
-      setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 1200);
-    });
+      function getFileIcon(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        return { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃' }[ext] || '📁';
+      }
+    </script>
+  </body>
 
-    function showStatus(type, msg) {
-      status.className = `status ${type}`;
-      status.textContent = msg;
-    }
-
-    function formatSize(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-    }
-
-    function getFileIcon(name) {
-      const ext = name.split('.').pop().toLowerCase();
-      const map = { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', csv: '📊',
-                    xlsx: '📊', xls: '📊', png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
-                    gif: '🖼️', mp4: '🎬', mp3: '🎵', zip: '🗜️', py: '🐍', js: '📜' };
-      return map[ext] || '📁';
-    }
-  </script>
-</body>
 </html>

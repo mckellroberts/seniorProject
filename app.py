@@ -4,9 +4,9 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
-from rag.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
+from rag.tools.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
 from rag.tools.vectorStore import ChromaRetriever
-from rag.agents.agent import generateInUserVoice
+from rag.agents.agent import generateInUserVoice, getWritingIdeas
 
 app = Flask(__name__)
 CORS(app)
@@ -14,7 +14,7 @@ CORS(app)
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR         = Path(__file__).parent
 UPLOAD_FOLDER    = BASE_DIR / "rag" / "data" / "raw"
-VECTOR_STORE_DIR = BASE_DIR / "rag" / "data" / "vector_store"
+VECTOR_STORE_DIR = BASE_DIR / "rag" / "data" / "vectorStore"
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,6 +47,24 @@ def getUserId(req) -> str:
 def home():
     return send_from_directory(".", "index.html")
 
+@app.route("/ideas", methods=["GET"])
+def writingIdeas():
+    """Return story/writing ideas tailored to the user's style."""
+    userId = request.args.get("userId", "default")
+    topic  = request.args.get("topic", "")
+    count  = int(request.args.get("count", 5))
+
+    result = getWritingIdeas(
+        userId=userId,
+        vectorStoreDir=VECTOR_STORE_DIR,
+        topic=topic,
+        count=count,
+    )
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
 
 @app.route("/upload", methods=["POST"])
 def uploadFile():
