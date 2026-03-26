@@ -13,6 +13,7 @@ from .storyDetector import detectStoryPatterns
 from .ideaGenerator import generateIdeas
 from .voiceGenerator import generateInVoice
 from .profileCache import loadCache, saveCache
+from .paragraphAnalyzer import analyzeParagraphs
 
 # Cache lives alongside the other data directories
 _CACHE_DIR_NAME = "cache"
@@ -22,20 +23,21 @@ def _cacheDir(vectorStoreDir: Path) -> Path:
     return vectorStoreDir.parent / _CACHE_DIR_NAME
 
 
-def _getProfiles(retriever: ChromaRetriever, userId: str, vectorStoreDir: Path) -> tuple[dict, dict]:
+def _getProfiles(retriever: ChromaRetriever, userId: str, vectorStoreDir: Path) -> tuple[dict, dict, dict]:
     """
-    Return (styleProfile, storyPatterns), pulling from cache when valid.
-    Runs both agents and writes a fresh cache when the cache is stale or missing.
+    Return (styleProfile, storyPatterns, paragraphStats), pulling from cache when valid.
+    Runs all three analyses and writes a fresh cache when the cache is stale or missing.
     """
     docCount = retriever.count()
     cached = loadCache(_cacheDir(vectorStoreDir), userId, docCount)
     if cached:
-        return cached["styleProfile"], cached["storyPatterns"]
+        return cached["styleProfile"], cached["storyPatterns"], cached["paragraphStats"]
 
-    styleProfile  = analyzeStyle(retriever)
-    storyPatterns = detectStoryPatterns(retriever)
-    saveCache(_cacheDir(vectorStoreDir), userId, styleProfile, storyPatterns, docCount)
-    return styleProfile, storyPatterns
+    styleProfile   = analyzeStyle(retriever)
+    storyPatterns  = detectStoryPatterns(retriever)
+    paragraphStats = analyzeParagraphs(retriever)
+    saveCache(_cacheDir(vectorStoreDir), userId, styleProfile, storyPatterns, paragraphStats, docCount)
+    return styleProfile, storyPatterns, paragraphStats
 
 
 def buildStyleProfile(retriever: ChromaRetriever, userId: str = "default", vectorStoreDir: Path | None = None) -> dict:
@@ -45,7 +47,7 @@ def buildStyleProfile(retriever: ChromaRetriever, userId: str = "default", vecto
     Uses cache when available.
     """
     if vectorStoreDir is not None:
-        styleProfile, _ = _getProfiles(retriever, userId, vectorStoreDir)
+        styleProfile, _, _ = _getProfiles(retriever, userId, vectorStoreDir)
         return styleProfile
     return analyzeStyle(retriever)
 
@@ -83,8 +85,8 @@ def generateInUserVoice(
             "sourcesUsed":   [],
         }
 
-    # 1 & 2. Get style profile and story patterns (from cache if available)
-    styleProfile, storyPatterns = _getProfiles(retriever, userId, vectorStoreDir)
+    # 1, 2 & 3. Get profiles (from cache if available)
+    styleProfile, storyPatterns, paragraphStats = _getProfiles(retriever, userId, vectorStoreDir)
 
     # 3. Generate text using both profiles as context
     generation = generateInVoice(
@@ -96,10 +98,11 @@ def generateInUserVoice(
     )
 
     return {
-        "generatedText": generation.get("generatedText"),
-        "styleProfile":  styleProfile,
-        "storyPatterns": storyPatterns,
-        "sourcesUsed":   generation.get("sourcesUsed", []),
+        "generatedText":  generation.get("generatedText"),
+        "styleProfile":   styleProfile,
+        "storyPatterns":  storyPatterns,
+        "paragraphStats": paragraphStats,
+        "sourcesUsed":    generation.get("sourcesUsed", []),
     }
 
 

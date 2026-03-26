@@ -1,255 +1,1202 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceForge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="frontend/style.css" />
-  </head>
+    :root {
+      --bg:             #111111;
+      --surface:        #1a1a1a;
+      --surface2:       #222222;
+      --border:         #2a2a2a;
+      --accent:         #7D1D3F;
+      --accent-hover:   #9B2449;
+      --accent-dim:     rgba(125, 29, 63, 0.15);
+      --accent-border:  rgba(125, 29, 63, 0.4);
+      --text:           #e8e8e8;
+      --soft:           #aaaaaa;
+      --muted:          #888888;
+      --success:        #27ae60;
+      --success-bg:     rgba(39, 174, 96, 0.08);
+      --success-bdr:    rgba(39, 174, 96, 0.25);
+      --error:          #c0392b;
+      --error-bg:       rgba(192, 57, 43, 0.08);
+      --error-bdr:      rgba(192, 57, 43, 0.25);
+      --doc-bg:         #f0eeeb;
+      --doc-text:       #1a1a1a;
+      --sidebar-w:      220px;
+      --sidebar-w-sm:   52px;
+      --topbar-h:       44px;
+      --radius:         8px;
+      --font-mono:      ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+      --font-sans:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-serif:     'Georgia', 'Times New Roman', serif;
+    }
 
-  <body>
+    html, body { height: 100%; overflow: hidden; }
 
-    <header class="page-header">
-      <p>Upload your work · train on your words · generate in your style</p>
-    </header>
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+    }
 
-    <div class="layout">
+    /* ── Sidebar ──────────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w-sm);
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .sidebar.expanded { width: var(--sidebar-w); }
 
-      <!-- ── LEFT: Upload ── -->
-      <div class="card">
-        <div class="card-title">📂 Your Writing Samples</div>
-        <p class="card-subtitle">Supported: .txt · .pdf · .md · .docx</p>
+    .sidebar-header {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
 
-        <div class="drop-zone" id="dropZone">
-          <input type="file" id="fileInput" multiple accept=".txt,.pdf,.md,.docx" />
-          <div class="drop-icon">⬆️</div>
-          <p><span>Click to browse</span> or drag files here</p>
-          <p class="drop-hint">The more you upload, the better the voice match</p>
-        </div>
+    .toggle-btn {
+      width: 32px; height: 32px;
+      flex-shrink: 0;
+      background: none; border: none;
+      color: var(--soft);
+      cursor: pointer;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .toggle-btn:hover { background: var(--surface2); color: var(--text); }
 
-        <div class="file-list" id="fileList"></div>
+    .brand-label {
+      font-size: 1rem; font-weight: 700;
+      color: var(--text); letter-spacing: -0.5px;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .brand-label span { color: var(--accent); }
+    .sidebar.expanded .brand-label { opacity: 1; pointer-events: auto; }
 
-        <div class="progress-wrap" id="uploadProgress">
-          <div class="progress-bar" id="uploadBar"></div>
-        </div>
+    .sidebar-user {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0; min-width: 0;
+    }
 
-        <button class="btn btn-primary" id="uploadBtn" disabled>Upload Files</button>
-        <div class="status" id="uploadStatus"></div>
-      </div>
+    .user-avatar {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff; font-size: 0.8rem; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      text-transform: uppercase;
+    }
 
-      <!-- ── RIGHT: Generate ── -->
-      <div class="card">
-        <div class="card-title">✍️ Generate</div>
-        <p class="card-subtitle">Describe what you want written</p>
+    .user-info {
+      overflow: hidden;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .sidebar.expanded .user-info { opacity: 1; pointer-events: auto; }
 
-        <textarea class="prompt-area" id="promptInput"
-          placeholder="e.g. Write the opening paragraph of a short story about a lighthouse keeper who hasn't spoken to anyone in three years..."></textarea>
+    .username {
+      font-size: 0.85rem; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-sub { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); }
 
-        <div class="hint-row">
-          <label>style hint →</label>
-          <input class="hint-input" id="styleHint" type="text" placeholder="e.g. more melancholy, shorter sentences" />
-        </div>
+    .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; overflow-x: hidden; }
 
-        <div class="progress-wrap" id="generateProgress">
-          <div class="progress-bar" id="generateBar"></div>
-        </div>
+    .nav-item {
+      width: 100%;
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      background: none; border: none;
+      color: var(--soft);
+      font-family: var(--font-sans); font-size: 0.85rem;
+      cursor: pointer; text-align: left; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
 
-        <button class="btn btn-primary" id="generateBtn">Generate</button>
+    .nav-icon {
+      width: 20px; height: 20px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+    }
 
-        <!-- Output -->
-        <div id="outputWrap" style="display:none; margin-top:1.25rem;">
-          <div class="output-header">
-            <span class="style-tag" id="styleTag">style profile ready</span>
-            <button class="copy-btn" id="copyBtn">copy</button>
-          </div>
-          <div class="output-box has-content" id="outputBox"></div>
-          <div class="sources-list" id="sourcesList"></div>
-        </div>
+    .nav-label {
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .sidebar.expanded .nav-label { opacity: 1; pointer-events: auto; }
 
-        <div class="status" id="generateStatus"></div>
-      </div>
+    .sidebar-footer { border-top: 1px solid var(--border); padding: 0.5rem 0; flex-shrink: 0; }
+    .nav-logout { color: var(--muted); }
+    .nav-logout:hover { color: var(--error); background: var(--error-bg); }
 
+    /* ── Main ─────────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      min-width: 0;
+      position: relative;
+    }
+
+    /* Topbar */
+    .topbar {
+      height: var(--topbar-h);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
+
+    .topbar-brand {
+      font-size: 1rem; font-weight: 700;
+      color: var(--text); letter-spacing: -0.5px;
+    }
+    .topbar-brand span { color: var(--accent); }
+
+    .topbar-mode-pills {
+      display: flex; gap: 2px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .mode-pill {
+      background: none; border: none;
+      color: var(--muted);
+      font-family: var(--font-sans); font-size: 0.78rem; font-weight: 500;
+      padding: 0.3rem 0.65rem; border-radius: 4px;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mode-pill:hover { color: var(--soft); }
+    .mode-pill.active { background: var(--accent); color: #fff; }
+
+    .topbar-right { display: flex; align-items: center; gap: 0.5rem; }
+
+    .topbar-stat {
+      font-family: var(--font-mono); font-size: 0.68rem;
+      color: var(--muted); white-space: nowrap;
+    }
+
+    /* ── Document workspace ───────────────────────────────────────────── */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(125,29,63,0.04) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    /* Document column */
+    .doc-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      padding: 2.5rem 1.5rem 1rem;
+      gap: 0;
+    }
+
+    /* The paper itself */
+    .doc-paper {
+      width: 100%;
+      max-width: 680px;
+      min-height: 480px;
+      flex: 1;
+      background: var(--doc-bg);
+      border-radius: 4px;
+      box-shadow:
+        0 2px 4px rgba(0,0,0,0.4),
+        0 8px 24px rgba(0,0,0,0.5),
+        0 24px 48px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .doc-paper-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: #e4e2df;
+      border-bottom: 1px solid #ccc;
+      flex-shrink: 0;
+    }
+
+    .doc-tab-group { display: flex; gap: 2px; }
+
+    .doc-tab {
+      background: none; border: none;
+      font-family: var(--font-sans); font-size: 0.72rem;
+      font-weight: 500; letter-spacing: 0.03em;
+      color: #777;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .doc-tab:hover { background: rgba(0,0,0,0.06); color: #333; }
+    .doc-tab.active {
+      background: white;
+      color: #222;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    .doc-paper-actions { display: flex; gap: 0.35rem; }
+
+    .doc-action-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      color: #888;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .doc-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Actual textarea inside the doc */
+    .writing-area {
+      flex: 1;
+      width: 100%;
+      min-height: 400px;
+      background: transparent;
+      border: none; outline: none; resize: none;
+      color: var(--doc-text);
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      line-height: 1.85;
+      padding: 2rem 3rem;
+      caret-color: var(--accent);
+    }
+    .writing-area::placeholder { color: #b0aca7; font-style: italic; }
+
+    /* Generated panel (right side) */
+    .gen-panel {
+      width: 0;
+      overflow: hidden;
+      transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .gen-panel.open { width: 340px; }
+
+    .gen-panel-header {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .gen-panel-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .gen-panel-actions { display: flex; gap: 0.35rem; }
+
+    .mini-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-mono); font-size: 0.68rem;
+      padding: 0.2rem 0.55rem; border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mini-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+
+    .gen-panel-body {
+      flex: 1; overflow-y: auto;
+      padding: 1.25rem;
+      font-family: var(--font-sans); font-size: 0.88rem;
+      line-height: 1.75; color: var(--soft);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .empty-hint { color: var(--muted); font-style: italic; font-size: 0.82rem; }
+
+    /* ── Action bar ───────────────────────────────────────────────────── */
+    .action-bar {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    /* Style hint row */
+    .opts-row {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.45rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .opts-row.open { display: flex; }
+    .opts-row label {
+      font-family: var(--font-mono); font-size: 0.68rem;
+      color: var(--muted); white-space: nowrap;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .opts-row input {
+      flex: 1; background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text); font-family: var(--font-sans); font-size: 0.85rem;
+      padding: 0.35rem 0.75rem; outline: none;
+      transition: border-color 0.15s;
+    }
+    .opts-row input:focus { border-color: var(--accent-border); }
+    .opts-row input::placeholder { color: #444; }
+
+    /* Input row */
+    .action-input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .action-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-sans); font-size: 0.88rem;
+      padding: 0.5rem 0.85rem;
+      outline: none; resize: none; line-height: 1.4;
+      max-height: 120px; overflow-y: auto;
+      transition: border-color 0.15s;
+    }
+    .action-input:focus { border-color: var(--accent-border); }
+    .action-input::placeholder { color: #444; }
+
+    .action-icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted); font-size: 0.9rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .action-icon-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+    .action-icon-btn.active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+
+    .action-send-btn {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: var(--accent); border: none;
+      border-radius: var(--radius);
+      color: #fff; font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .action-send-btn:hover { background: var(--accent-hover); }
+    .action-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .stat { font-family: var(--font-mono); font-size: 0.65rem; color: var(--soft); white-space: nowrap; }
+    .stat-dim { color: var(--muted); }
+    .stat-sep { color: var(--border); font-size: 0.8rem; }
+
+    /* Loading spinner */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modals ───────────────────────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 100; padding: 1rem;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%; max-width: 480px;
+      max-height: 85vh; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .modal-wide { max-width: 640px; }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); }
+    .modal-close {
+      background: none; border: none; color: var(--muted);
+      font-size: 0.9rem; cursor: pointer;
+      padding: 0.25rem; border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-sub { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: -0.5rem; }
+
+    .modal-btn {
+      width: 100%; background: var(--accent); border: none;
+      border-radius: var(--radius); color: #fff;
+      font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
+      padding: 0.7rem; cursor: pointer;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .modal-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-btn-sm { width: auto; padding: 0.4rem 0.9rem; font-size: 0.82rem; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 1.5px dashed var(--border); border-radius: var(--radius);
+      padding: 1.75rem 1rem; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-border); background: var(--accent-dim); }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .drop-zone p { font-size: 0.83rem; color: var(--soft); }
+    .drop-zone span { color: var(--accent); font-weight: 500; }
+    .drop-hint { font-family: var(--font-mono); font-size: 0.67rem; color: var(--muted); margin-top: 0.35rem; }
+
+    .file-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .file-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.82rem;
+      animation: slideIn 0.15s ease;
+    }
+    @keyframes slideIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+    .file-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .file-info { flex: 1; overflow: hidden; }
+    .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
+    .file-size { color: var(--muted); font-size: 0.7rem; font-family: var(--font-mono); }
+    .remove-btn {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.9rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s;
+    }
+    .remove-btn:hover { color: var(--error); }
+
+    .progress-wrap { height: 2px; background: var(--border); border-radius: 999px; overflow: hidden; display: none; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); width: 0%; border-radius: 999px; transition: width 0.3s ease; }
+
+    .status { padding: 0.6rem 0.85rem; border-radius: var(--radius); font-size: 0.8rem; display: none; font-family: var(--font-mono); }
+    .status.success { display: block; background: var(--success-bg); border: 1px solid var(--success-bdr); color: var(--success); }
+    .status.error { display: block; background: var(--error-bg); border: 1px solid var(--error-bdr); color: var(--error); }
+
+    .works-list { display: flex; flex-direction: column; gap: 0.4rem; min-height: 60px; }
+    .work-item { display: flex; align-items: center; gap: 0.65rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; }
+    .work-name { flex: 1; font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .loading-hint { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 0.5rem 0; }
+
+    .style-content { display: flex; flex-direction: column; gap: 1rem; }
+    .style-section-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
+    .style-section-body { font-size: 0.87rem; color: var(--soft); line-height: 1.6; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
+    .stat-card-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.3rem; }
+    .stat-card-value { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+    .stat-card-sub { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .ideas-controls { display: flex; gap: 0.6rem; align-items: center; }
+    .ideas-controls input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--font-sans); font-size: 0.88rem; padding: 0.45rem 0.75rem; outline: none; transition: border-color 0.15s; }
+    .ideas-controls input:focus { border-color: var(--accent-border); }
+    .ideas-controls input::placeholder { color: #444; }
+    .ideas-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .idea-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; animation: slideIn 0.2s ease; }
+    .idea-text { font-size: 0.9rem; color: var(--text); font-weight: 500; margin-bottom: 0.4rem; }
+    .idea-hook { font-size: 0.82rem; color: var(--soft); margin-bottom: 0.2rem; }
+    .idea-fit { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    @media (max-width: 720px) {
+      .sidebar { position: fixed; z-index: 50; height: 100vh; }
+      .gen-panel.open { width: 100%; position: fixed; inset: 0; z-index: 40; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <button class="toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+      <span class="brand-label">Voice<span>Forge</span></span>
     </div>
 
-    <script>
-      const USER_ID = "default";
-      let selectedFiles = [];
+    <div class="sidebar-user">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-info">
+        <div class="username" id="sidebarUsername">Loading...</div>
+        <div class="user-sub">writer</div>
+      </div>
+    </div>
 
-      const dropZone = document.getElementById('dropZone');
+    <nav class="sidebar-nav">
+      <button class="nav-item" onclick="openModal('upload')" title="Upload Files">
+        <span class="nav-icon">↑</span>
+        <span class="nav-label">Upload Files</span>
+      </button>
+      <button class="nav-item" onclick="openModal('works')" title="My Works">
+        <span class="nav-icon">≡</span>
+        <span class="nav-label">My Works</span>
+      </button>
+      <button class="nav-item" onclick="openModal('style')" title="Style Profile">
+        <span class="nav-icon">◈</span>
+        <span class="nav-label">Style Profile</span>
+      </button>
+      <button class="nav-item" onclick="openModal('ideas')" title="Writing Ideas">
+        <span class="nav-icon">✦</span>
+        <span class="nav-label">Writing Ideas</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="nav-item nav-logout" onclick="logout()" title="Sign Out">
+        <span class="nav-icon">→</span>
+        <span class="nav-label">Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────────────────── -->
+  <div class="main" id="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-brand">Voice<span>Forge</span></span>
+        <div class="topbar-mode-pills">
+          <button class="mode-pill active" data-mode="generate" onclick="setMode('generate')">Generate</button>
+          <button class="mode-pill" data-mode="ideas"    onclick="setMode('ideas')">Ideas</button>
+          <button class="mode-pill" data-mode="analyze"  onclick="setMode('analyze')">Analyze</button>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-stat" id="draftWordCount">0 words</span>
+      </div>
+    </header>
+
+    <!-- Workspace: document + generated panel -->
+    <div class="workspace">
+
+      <!-- Document column -->
+      <div class="doc-column" id="docColumn">
+        <div class="doc-paper">
+          <div class="doc-paper-tabs">
+            <div class="doc-tab-group">
+              <button class="doc-tab active" onclick="showDocTab('draft', this)">Draft</button>
+              <button class="doc-tab" onclick="showDocTab('generated', this)" id="genTabBtn">Generated</button>
+            </div>
+            <div class="doc-paper-actions">
+              <button class="doc-action-btn" id="insertBtn" style="display:none" onclick="insertGenerated()">← Insert</button>
+              <button class="doc-action-btn" id="copyBtn"   style="display:none" onclick="copyGenerated()">Copy</button>
+            </div>
+          </div>
+
+          <!-- Draft view -->
+          <textarea class="writing-area" id="draftArea"
+            placeholder="Start writing here. This space is yours."></textarea>
+
+          <!-- Generated view (hidden initially) -->
+          <div class="writing-area" id="generatedDocView"
+            style="display:none; overflow-y:auto; cursor:default;">
+            <span class="empty-hint" id="genHint">Generated text will appear here</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side generated panel (optional) -->
+      <div class="gen-panel" id="genPanel">
+        <div class="gen-panel-header">
+          <span class="gen-panel-title">Generated</span>
+          <div class="gen-panel-actions">
+            <button class="mini-btn" id="sideInsertBtn" style="display:none" onclick="insertGenerated()">Insert →</button>
+            <button class="mini-btn" id="sideCopyBtn"   style="display:none" onclick="copyGenerated()">Copy</button>
+            <button class="mini-btn" onclick="closeGenPanel()">✕</button>
+          </div>
+        </div>
+        <div class="gen-panel-body" id="generatedArea">
+          <span class="empty-hint">Generated text will appear here</span>
+        </div>
+      </div>
+
+    </div><!-- .workspace -->
+
+    <!-- Style hint row -->
+    <div class="action-bar">
+      <div class="opts-row" id="optsRow">
+        <label>Style hint</label>
+        <input type="text" id="styleHintInput" placeholder="e.g. more melancholy, shorter sentences..." />
+      </div>
+
+      <!-- Input row -->
+      <div class="action-input-row">
+        <textarea class="action-input" id="actionInput" rows="1"
+          placeholder="Describe what you want written..."></textarea>
+        <button class="action-icon-btn" id="optBtn" onclick="toggleOpts()" title="Style hint">⚙</button>
+        <button class="action-send-btn" id="sendBtn" onclick="handleSend()">↑</button>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="stats-strip">
+        <span class="stat" id="statDraftWords">0 words in draft</span>
+        <span class="stat-sep">·</span>
+        <span class="stat stat-dim" id="statAvgSentence">avg sentence: —</span>
+        <span class="stat-sep">·</span>
+        <span class="stat stat-dim" id="statDialogue">dialogue: —</span>
+        <span class="stat-sep">·</span>
+        <span class="stat stat-dim" id="statEmDash">em-dash: —</span>
+      </div>
+    </div>
+
+  </div><!-- .main -->
+
+  <!-- ── Upload Modal ──────────────────────────────────────────────────────── -->
+  <div class="overlay" id="uploadOverlay" onclick="closeModal('upload')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Upload Writing Samples</span>
+        <button class="modal-close" onclick="closeModal('upload')">✕</button>
+      </div>
+      <p class="modal-sub">Supported: .txt · .pdf · .md · .docx</p>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" multiple accept=".txt,.pdf,.md,.docx" />
+        <div class="drop-icon">⬆</div>
+        <p><span>Click to browse</span> or drag files here</p>
+        <p class="drop-hint">The more you upload, the better the voice match</p>
+      </div>
+      <div class="file-list" id="fileList"></div>
+      <div class="progress-wrap" id="uploadProgress">
+        <div class="progress-bar" id="uploadBar"></div>
+      </div>
+      <button class="modal-btn" id="uploadBtn" disabled>Upload Files</button>
+      <div class="status" id="uploadStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── My Works Modal ───────────────────────────────────────────────────── -->
+  <div class="overlay" id="worksOverlay" onclick="closeModal('works')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">My Uploaded Works</span>
+        <button class="modal-close" onclick="closeModal('works')">✕</button>
+      </div>
+      <div class="works-list" id="worksList"><span class="loading-hint">Loading...</span></div>
+      <div class="status" id="worksStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── Style Profile Modal ──────────────────────────────────────────────── -->
+  <div class="overlay" id="styleOverlay" onclick="closeModal('style')">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Your Style Profile</span>
+        <button class="modal-close" onclick="closeModal('style')">✕</button>
+      </div>
+      <div class="style-content" id="styleContent">
+        <span class="loading-hint">Analyzing your writing...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Ideas Modal ──────────────────────────────────────────────────────── -->
+  <div class="overlay" id="ideasOverlay" onclick="closeModal('ideas')">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Writing Ideas</span>
+        <button class="modal-close" onclick="closeModal('ideas')">✕</button>
+      </div>
+      <div class="ideas-controls">
+        <input type="text" id="ideasTopicInput" placeholder="Optional topic or theme..." />
+        <button class="modal-btn modal-btn-sm" onclick="fetchIdeas()">Generate Ideas</button>
+      </div>
+      <div class="ideas-list" id="ideasList"></div>
+      <div class="status" id="ideasStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── Script ────────────────────────────────────────────────────────────── -->
+  <script>
+    let USER_ID = null, USERNAME = null;
+    let currentMode = 'generate';
+    let selectedFiles = [];
+    let generatedText = '';
+
+    // ── Auth ─────────────────────────────────────────────────────────────
+    async function initAuth() {
+      try {
+        const res = await fetch('/auth/me');
+        if (!res.ok) { window.location.replace('/login'); return; }
+        const data = await res.json();
+        USER_ID = String(data.userId);
+        USERNAME = data.username;
+        document.getElementById('sidebarUsername').textContent = USERNAME;
+        document.getElementById('userAvatar').textContent = USERNAME[0].toUpperCase();
+      } catch { window.location.replace('/login'); }
+    }
+
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.replace('/login');
+    }
+
+    // ── Sidebar ──────────────────────────────────────────────────────────
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('expanded');
+    }
+
+    // ── Mode ─────────────────────────────────────────────────────────────
+    const placeholders = {
+      generate: 'Describe what you want written...',
+      ideas:    'Optional topic or theme (leave blank for general ideas)...',
+      analyze:  'Press send to analyze your uploaded writing...',
+    };
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.mode === mode)
+      );
+      const input = document.getElementById('actionInput');
+      input.placeholder = placeholders[mode];
+      input.disabled = mode === 'analyze';
+    }
+
+    // ── Style hint toggle ────────────────────────────────────────────────
+    function toggleOpts() {
+      document.getElementById('optsRow').classList.toggle('open');
+      document.getElementById('optBtn').classList.toggle('active');
+    }
+
+    // ── Doc tabs ─────────────────────────────────────────────────────────
+    function showDocTab(tab, btn) {
+      document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      const draftArea = document.getElementById('draftArea');
+      const genView   = document.getElementById('generatedDocView');
+      if (tab === 'draft') {
+        draftArea.style.display = 'block';
+        genView.style.display = 'none';
+      } else {
+        draftArea.style.display = 'none';
+        genView.style.display = 'block';
+        // sync content
+        const hint = document.getElementById('genHint');
+        if (generatedText) {
+          genView.textContent = generatedText;
+          document.getElementById('insertBtn').style.display = 'inline-block';
+          document.getElementById('copyBtn').style.display   = 'inline-block';
+        }
+      }
+    }
+
+    function closeGenPanel() {
+      document.getElementById('genPanel').classList.remove('open');
+    }
+
+    // ── Action send ──────────────────────────────────────────────────────
+    async function handleSend() {
+      if (currentMode === 'generate') await doGenerate();
+      else if (currentMode === 'ideas') await doIdeasFromBar();
+      else if (currentMode === 'analyze') await doAnalyze();
+    }
+
+    // Auto-resize textarea
+    document.addEventListener('DOMContentLoaded', () => {
+      const ta = document.getElementById('actionInput');
+      ta.addEventListener('input', () => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+      });
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+      });
+      document.getElementById('draftArea').addEventListener('input', updateWordCount);
+    });
+
+    // ── Generate ─────────────────────────────────────────────────────────
+    async function doGenerate() {
+      const prompt = document.getElementById('actionInput').value.trim();
+      if (!prompt) return;
+      const sendBtn = document.getElementById('sendBtn');
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="spinner"></span>';
+      setGeneratedContent(null, true);
+
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            styleHint: document.getElementById('styleHintInput').value.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setGeneratedContent(`Error: ${data.error || 'Generation failed'}`);
+        } else {
+          setGeneratedContent(data.generatedText || '');
+          if (data.paragraphStats) updateStatsStrip(data.paragraphStats);
+        }
+      } catch {
+        setGeneratedContent('Network error — is the server running?');
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '↑';
+      }
+    }
+
+    function setGeneratedContent(text, loading = false) {
+      const area        = document.getElementById('generatedArea');
+      const docView     = document.getElementById('generatedDocView');
+      const copyBtn     = document.getElementById('copyBtn');
+      const insertBtn   = document.getElementById('insertBtn');
+      const sideCopyBtn = document.getElementById('sideCopyBtn');
+      const sideInsBtn  = document.getElementById('sideInsertBtn');
+
+      if (loading) {
+        const loadMsg = '<span style="color:var(--muted);font-style:italic;font-size:.88rem">Generating...</span>';
+        area.innerHTML = loadMsg;
+        [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
+        // Open side panel to show generation in progress
+        document.getElementById('genPanel').classList.add('open');
+        return;
+      }
+      if (!text) {
+        area.innerHTML = '<span class="empty-hint">Generated text will appear here</span>';
+        [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
+        return;
+      }
+      generatedText = text;
+      area.textContent = text;
+      docView.textContent = text;
+      [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'inline-block');
+      // Highlight generated tab
+      document.getElementById('genTabBtn').style.color = 'var(--accent)';
+    }
+
+    async function copyGenerated() {
+      await navigator.clipboard.writeText(generatedText);
+      [document.getElementById('copyBtn'), document.getElementById('sideCopyBtn')].forEach(b => {
+        if (b) { const orig = b.textContent; b.textContent = 'Copied!'; setTimeout(() => b.textContent = orig, 1500); }
+      });
+    }
+
+    function insertGenerated() {
+      const draft = document.getElementById('draftArea');
+      const sep = draft.value.length > 0 ? '\n\n' : '';
+      draft.value += sep + generatedText;
+      updateWordCount();
+      // Switch back to draft tab
+      document.querySelector('.doc-tab').click();
+      draft.focus();
+      draft.scrollTop = draft.scrollHeight;
+    }
+
+    // ── Ideas from action bar ────────────────────────────────────────────
+    async function doIdeasFromBar() {
+      const topic = document.getElementById('actionInput').value.trim();
+      openModal('ideas');
+      document.getElementById('ideasTopicInput').value = topic;
+      await fetchIdeas();
+    }
+
+    // ── Analyze ──────────────────────────────────────────────────────────
+    async function doAnalyze() {
+      openModal('style');
+      await fetchStyleProfile();
+    }
+
+    // ── Word count ───────────────────────────────────────────────────────
+    function updateWordCount() {
+      const text = document.getElementById('draftArea').value.trim();
+      const count = text ? text.split(/\s+/).length : 0;
+      document.getElementById('draftWordCount').textContent = `${count} words`;
+      document.getElementById('statDraftWords').textContent = `${count} words in draft`;
+    }
+
+    // ── Stats strip ──────────────────────────────────────────────────────
+    function updateStatsStrip(stats) {
+      if (stats.sentenceLength?.avg !== undefined)
+        document.getElementById('statAvgSentence').textContent = `avg sentence: ${stats.sentenceLength.avg} words`;
+      if (stats.dialogueRatio !== undefined)
+        document.getElementById('statDialogue').textContent = `dialogue: ${Math.round(stats.dialogueRatio * 100)}%`;
+      if (stats.punctuationHabits?.emDash !== undefined)
+        document.getElementById('statEmDash').textContent = `em-dash: ${stats.punctuationHabits.emDash}`;
+    }
+
+    // ── Modals ───────────────────────────────────────────────────────────
+    function openModal(name) {
+      document.getElementById(`${name}Overlay`).classList.add('open');
+      if (name === 'works') fetchWorks();
+      if (name === 'style') fetchStyleProfile();
+    }
+    function closeModal(name) {
+      document.getElementById(`${name}Overlay`).classList.remove('open');
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') ['upload','works','style','ideas'].forEach(closeModal);
+    });
+
+    // ── Upload ───────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropZone  = document.getElementById('dropZone');
       const fileInput = document.getElementById('fileInput');
-      const fileList = document.getElementById('fileList');
-      const uploadBtn = document.getElementById('uploadBtn');
-      const uploadStatus = document.getElementById('uploadStatus');
-      const uploadProgress = document.getElementById('uploadProgress');
-      const uploadBar = document.getElementById('uploadBar');
-
-      const promptInput = document.getElementById('promptInput');
-      const styleHintInput = document.getElementById('styleHint');
-      const generateBtn = document.getElementById('generateBtn');
-      const generateStatus = document.getElementById('generateStatus');
-      const generateProgress = document.getElementById('generateProgress');
-      const generateBar = document.getElementById('generateBar');
-      const outputWrap = document.getElementById('outputWrap');
-      const outputBox = document.getElementById('outputBox');
-      const styleTag = document.getElementById('styleTag');
-      const sourcesList = document.getElementById('sourcesList');
-      const copyBtn = document.getElementById('copyBtn');
-
-      // ── Upload ─────────────────────────────────────────────────────────────
       dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
       dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-      dropZone.addEventListener('drop', e => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        addFiles([...e.dataTransfer.files]);
-      });
+      dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles([...e.dataTransfer.files]); });
       fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+      document.getElementById('uploadBtn').addEventListener('click', doUpload);
+    });
 
-      function addFiles(newFiles) {
-        newFiles.forEach(f => {
-          if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f);
-        });
-        renderFileList();
-      }
+    function addFiles(newFiles) {
+      newFiles.forEach(f => { if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f); });
+      renderFileList();
+    }
 
-      function renderFileList() {
-        fileList.innerHTML = '';
-        selectedFiles.forEach((file, i) => {
-          const item = document.createElement('div');
-          item.className = 'file-item';
-          item.innerHTML = `
-          <span class="file-icon">${getFileIcon(file.name)}</span>
-          <div class="file-info">
-            <div class="file-name">${file.name}</div>
-            <div class="file-size">${formatSize(file.size)}</div>
-          </div>
-          <button class="remove-btn" data-index="${i}" title="Remove">&#x2715;</button>
-        `;
-          fileList.appendChild(item);
-        });
-        fileList.querySelectorAll('.remove-btn').forEach(btn =>
-          btn.addEventListener('click', () => {
-            selectedFiles.splice(Number(btn.dataset.index), 1);
-            renderFileList();
-          })
-        );
-        uploadBtn.disabled = selectedFiles.length === 0;
-        uploadStatus.className = 'status';
-      }
-
-      uploadBtn.addEventListener('click', async () => {
-        if (!selectedFiles.length) return;
-        uploadBtn.disabled = true;
-        uploadStatus.className = 'status';
-        uploadProgress.style.display = 'block';
-        uploadBar.style.width = '0%';
-
-        const results = [];
-        for (let i = 0; i < selectedFiles.length; i++) {
-          const formData = new FormData();
-          formData.append('file', selectedFiles[i]);
-          formData.append('user_id', USER_ID);
-          try {
-            const res = await fetch('/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            results.push({ name: selectedFiles[i].name, ok: res.ok, msg: data.message || data.error });
-          } catch {
-            results.push({ name: selectedFiles[i].name, ok: false, msg: 'Network error' });
-          }
-          uploadBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
-        }
-
-        const failed = results.filter(r => !r.ok);
-        if (!failed.length) {
-          showStatus(uploadStatus, 'success', `✓ ${results.length} file(s) uploaded and indexed`);
-          selectedFiles = [];
-          renderFileList();
-        } else {
-          showStatus(uploadStatus, 'error', `✗ Failed: ${failed.map(f => f.name).join(', ')}`);
-          uploadBtn.disabled = false;
-        }
-        setTimeout(() => { uploadProgress.style.display = 'none'; uploadBar.style.width = '0%'; }, 1200);
+    function renderFileList() {
+      const list = document.getElementById('fileList');
+      list.innerHTML = '';
+      selectedFiles.forEach((file, i) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `<span class="file-icon">${getFileIcon(file.name)}</span><div class="file-info"><div class="file-name">${file.name}</div><div class="file-size">${formatSize(file.size)}</div></div><button class="remove-btn" data-i="${i}" title="Remove">✕</button>`;
+        list.appendChild(item);
       });
+      list.querySelectorAll('.remove-btn').forEach(btn =>
+        btn.addEventListener('click', () => { selectedFiles.splice(Number(btn.dataset.i), 1); renderFileList(); })
+      );
+      document.getElementById('uploadBtn').disabled = selectedFiles.length === 0;
+      document.getElementById('uploadStatus').className = 'status';
+    }
 
-      // ── Generate ───────────────────────────────────────────────────────────
-      generateBtn.addEventListener('click', async () => {
-        const prompt = promptInput.value.trim();
-        if (!prompt) {
-          showStatus(generateStatus, 'error', '✗ Please enter a prompt first');
-          return;
-        }
-
-        generateBtn.disabled = true;
-        generateStatus.className = 'status';
-        outputWrap.style.display = 'none';
-        generateProgress.style.display = 'block';
-
-        let prog = 0;
-        const ticker = setInterval(() => {
-          prog = Math.min(prog + Math.random() * 8, 85);
-          generateBar.style.width = `${prog}%`;
-        }, 400);
-
+    async function doUpload() {
+      if (!selectedFiles.length) return;
+      const uploadBtn = document.getElementById('uploadBtn');
+      const uploadBar = document.getElementById('uploadBar');
+      const uploadProgress = document.getElementById('uploadProgress');
+      const uploadStatus = document.getElementById('uploadStatus');
+      uploadBtn.disabled = true;
+      uploadStatus.className = 'status';
+      uploadProgress.style.display = 'block';
+      uploadBar.style.width = '0%';
+      const results = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const formData = new FormData();
+        formData.append('file', selectedFiles[i]);
         try {
-          const res = await fetch('/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: prompt,
-              userId: USER_ID,
-              styleHint: styleHintInput.value.trim(),
-            }),
-          });
+          const res  = await fetch('/upload', { method: 'POST', body: formData });
           const data = await res.json();
-
-          if (!res.ok || data.error) {
-            showStatus(generateStatus, 'error', `✗ ${data.error || 'Generation failed'}`);
-          } else {
-            outputBox.textContent = data.generatedText || '';
-            styleTag.textContent = data.styleProfile?.summary
-              ? `style: ${data.styleProfile.summary.slice(0, 60)}...`
-              : 'style profile applied';
-            sourcesList.textContent = data.sourcesUsed?.length
-              ? `sourced from: ${data.sourcesUsed.join(', ')}`
-              : '';
-            outputWrap.style.display = 'block';
-          }
-        } catch {
-          showStatus(generateStatus, 'error', '✗ Network error — is the server running?');
-        } finally {
-          clearInterval(ticker);
-          generateBar.style.width = '100%';
-          setTimeout(() => { generateProgress.style.display = 'none'; generateBar.style.width = '0%'; }, 500);
-          generateBtn.disabled = false;
-        }
-      });
-
-      promptInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateBtn.click();
-      });
-
-      copyBtn.addEventListener('click', async () => {
-        await navigator.clipboard.writeText(outputBox.textContent);
-        copyBtn.textContent = 'copied!';
-        setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500);
-      });
-
-      function showStatus(el, type, msg) {
-        el.className = `status ${type}`;
-        el.textContent = msg;
+          results.push({ name: selectedFiles[i].name, ok: res.ok, msg: data.message || data.error });
+        } catch { results.push({ name: selectedFiles[i].name, ok: false, msg: 'Network error' }); }
+        uploadBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
       }
-
-      function formatSize(bytes) {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+      const failed = results.filter(r => !r.ok);
+      if (!failed.length) {
+        showStatus(uploadStatus, 'success', `✓ ${results.length} file(s) uploaded and indexed`);
+        selectedFiles = []; renderFileList();
+      } else {
+        showStatus(uploadStatus, 'error', `✗ Failed: ${failed.map(f => f.name).join(', ')}`);
+        uploadBtn.disabled = false;
       }
+      setTimeout(() => { uploadProgress.style.display = 'none'; uploadBar.style.width = '0%'; }, 1200);
+    }
 
-      function getFileIcon(name) {
-        const ext = name.split('.').pop().toLowerCase();
-        return { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃' }[ext] || '📁';
-      }
-    </script>
-  </body>
+    // ── My Works ─────────────────────────────────────────────────────────
+    async function fetchWorks() {
+      const list = document.getElementById('worksList');
+      const status = document.getElementById('worksStatus');
+      list.innerHTML = '<span class="loading-hint">Loading...</span>';
+      status.className = 'status';
+      try {
+        const res = await fetch('/sources');
+        const data = await res.json();
+        if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to load works'); return; }
+        const sources = data.sources || [];
+        if (!sources.length) { list.innerHTML = '<span class="loading-hint">No works uploaded yet.</span>'; return; }
+        list.innerHTML = '';
+        sources.forEach(src => {
+          const item = document.createElement('div');
+          item.className = 'work-item';
+          item.innerHTML = `<span class="file-icon">${getFileIcon(src)}</span><span class="work-name">${src}</span><button class="remove-btn" title="Delete" onclick="deleteWork('${src}', this)">✕</button>`;
+          list.appendChild(item);
+        });
+      } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+    }
 
+    async function deleteWork(filename, btn) {
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/sources/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (res.ok) btn.closest('.work-item').remove();
+        else btn.disabled = false;
+      } catch { btn.disabled = false; }
+    }
+
+    // ── Style Profile ─────────────────────────────────────────────────────
+    async function fetchStyleProfile() {
+      const content = document.getElementById('styleContent');
+      content.innerHTML = '<span class="loading-hint">Analyzing your writing...</span>';
+      try {
+        const res  = await fetch('/styleProfile');
+        const data = await res.json();
+        if (!res.ok) { content.innerHTML = `<span class="loading-hint">${data.error || 'Could not load style profile.'}</span>`; return; }
+        const p = data.styleProfile || {};
+        content.innerHTML = '';
+        [
+          { label: 'Summary',            value: p.summary },
+          { label: 'Sentence Style',     value: p.sentenceStyle },
+          { label: 'Vocabulary',         value: p.vocabulary },
+          { label: 'Tone',               value: p.tone },
+          { label: 'Distinctive Habits', value: p.distinctiveHabits },
+        ].forEach(({ label, value }) => {
+          if (!value) return;
+          const sec = document.createElement('div');
+          sec.className = 'style-section';
+          sec.innerHTML = `<div class="style-section-label">${label}</div><div class="style-section-body">${value}</div>`;
+          content.appendChild(sec);
+        });
+        if (data.paragraphStats) { updateStatsStrip(data.paragraphStats); renderParagraphStats(content, data.paragraphStats); }
+      } catch { content.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>'; }
+    }
+
+    function renderParagraphStats(container, stats) {
+      if (!stats || stats.error) return;
+      const header = document.createElement('div');
+      header.className = 'style-section-label';
+      header.textContent = 'Writing Patterns';
+      container.appendChild(header);
+      const grid = document.createElement('div');
+      grid.className = 'stats-grid';
+      const sl = stats.sentenceLength || {}, pl = stats.paragraphLength || {}, ph = stats.punctuationHabits || {};
+      const dr = stats.dialogueRatio !== undefined ? `${Math.round(stats.dialogueRatio * 100)}%` : '—';
+      [
+        { label: 'Avg Sentence',   value: sl.avg ? `${sl.avg} words` : '—', sub: sl.distribution ? `${sl.distribution.short} short · ${sl.distribution.long} long` : '' },
+        { label: 'Avg Paragraph',  value: pl.avgSentences ? `${pl.avgSentences} sentences` : '—', sub: pl.avgWords ? `~${pl.avgWords} words` : '' },
+        { label: 'Dialogue Ratio', value: dr, sub: 'of sentences contain dialogue' },
+        { label: 'Punctuation',    value: `${ph.emDash ?? 0} em-dashes`, sub: `${ph.ellipsis ?? 0} ellipses · ${ph.semicolon ?? 0} semicolons` },
+      ].forEach(({ label, value, sub }) => {
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = `<div class="stat-card-label">${label}</div><div class="stat-card-value">${value}</div>${sub ? `<div class="stat-card-sub">${sub}</div>` : ''}`;
+        grid.appendChild(card);
+      });
+      container.appendChild(grid);
+    }
+
+    // ── Ideas ─────────────────────────────────────────────────────────────
+    async function fetchIdeas() {
+      const list   = document.getElementById('ideasList');
+      const status = document.getElementById('ideasStatus');
+      const topic  = document.getElementById('ideasTopicInput').value.trim();
+      list.innerHTML = '<span class="loading-hint">Generating ideas...</span>';
+      status.className = 'status';
+      try {
+        const params = new URLSearchParams({ count: 5 });
+        if (topic) params.set('topic', topic);
+        const res  = await fetch(`/ideas?${params}`);
+        const data = await res.json();
+        if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to generate ideas'); return; }
+        const ideas = data.ideas || [];
+        if (!ideas.length) { list.innerHTML = '<span class="loading-hint">No ideas returned. Try uploading more writing samples.</span>'; return; }
+        list.innerHTML = '';
+        ideas.forEach(idea => {
+          const card = document.createElement('div');
+          card.className = 'idea-card';
+          card.innerHTML = `<div class="idea-text">${idea.idea || idea}</div>${idea.hook ? `<div class="idea-hook">Hook: ${idea.hook}</div>` : ''}${idea.fit ? `<div class="idea-fit">${idea.fit}</div>` : ''}`;
+          list.appendChild(card);
+        });
+      } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────
+    function showStatus(el, type, msg) { el.className = `status ${type}`; el.textContent = msg; }
+    function formatSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+    }
+    function getFileIcon(name) {
+      const ext = (name || '').split('.').pop().toLowerCase();
+      return { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃' }[ext] || '📁';
+    }
+
+    initAuth();
+  </script>
+</body>
 </html>

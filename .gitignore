@@ -1,2 +1,17 @@
 pg2147.txt
 pg2148.txt
+
+# Secret key — never commit this
+.secret_key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Data
+rag/data/raw/
+rag/data/vectorStore/
+rag/data/cache/
+rag/data/users.db

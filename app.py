@@ -1,15 +1,55 @@
-import requests, os
+import requests, os, subprocess, time, secrets
 from pathlib import Path
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, redirect, url_for
 from flask_cors import CORS
+from flask_login import LoginManager, login_required, current_user
 
 from rag.tools.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
 from rag.tools.vectorStore import ChromaRetriever
 from rag.agents.agent import generateInUserVoice, getWritingIdeas
+from auth import auth, initDb, loadUser
 
 app = Flask(__name__)
 CORS(app)
+
+# ── Secret key ─────────────────────────────────────────────────────────────────
+# Reads SECRET_KEY from the environment (set this in production).
+# Locally, falls back to a .secret_key file so the key survives restarts.
+_SECRET_FILE = Path(__file__).parent / ".secret_key"
+
+def _loadSecretKey() -> str:
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+    if _SECRET_FILE.exists():
+        return _SECRET_FILE.read_text().strip()
+    key = secrets.token_hex(32)
+    _SECRET_FILE.write_text(key)
+    print("Generated new secret key → .secret_key  (set SECRET_KEY env var in production)")
+    return key
+
+app.config["SECRET_KEY"] = _loadSecretKey()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# ── Flask-Login ────────────────────────────────────────────────────────────────
+loginManager = LoginManager(app)
+
+@loginManager.user_loader
+def userLoader(userId):
+    return loadUser(int(userId))
+
+@loginManager.unauthorized_handler
+def unauthorized():
+    # API requests get a 401; browser navigations get redirected to /login
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify({"error": "Not authenticated"}), 401
+    return redirect("/login")
+
+# ── Auth blueprint ─────────────────────────────────────────────────────────────
+app.register_blueprint(auth)
+initDb()
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR         = Path(__file__).parent
@@ -18,6 +58,32 @@ VECTOR_STORE_DIR = BASE_DIR / "rag" / "data" / "vectorStore"
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
+
+# ── Ollama ─────────────────────────────────────────────────────────────────────
+
+def _ollamaRunning() -> bool:
+    try:
+        return requests.get("http://localhost:11434", timeout=2).status_code == 200
+    except requests.RequestException:
+        return False
+
+def ensureOllama() -> None:
+    if _ollamaRunning():
+        print("Ollama already running.")
+        return
+
+    print("Starting Ollama...")
+    subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    for _ in range(20):
+        time.sleep(1)
+        if _ollamaRunning():
+            print("Ollama started.")
+            return
+
+    print("Warning: Ollama did not respond after 20 seconds. Generation may fail.")
+
+ensureOllama()
 
 ALLOWED_EXTENSIONS = SUPPORTED_EXTENSIONS  # {".pdf", ".txt", ".md", ".docx"}
 
@@ -43,14 +109,20 @@ def getUserId(req) -> str:
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+@app.route("/login")
+def loginPage():
+    return send_from_directory(".", "login.html")
+
 @app.route("/")
+@login_required
 def home():
     return send_from_directory(".", "index.html")
 
 @app.route("/ideas", methods=["GET"])
+@login_required
 def writingIdeas():
     """Return story/writing ideas tailored to the user's style."""
-    userId = request.args.get("userId", "default")
+    userId = str(current_user.id)
     topic  = request.args.get("topic", "")
     count  = int(request.args.get("count", 5))
 
@@ -67,6 +139,7 @@ def writingIdeas():
     return jsonify(result)
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def uploadFile():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -81,7 +154,7 @@ def uploadFile():
             "error": f"Unsupported file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         }), 400
 
-    userId = getUserId(request)
+    userId = str(current_user.id)
 
     # Save raw file
     savePath = UPLOAD_FOLDER / file.filename
@@ -104,9 +177,10 @@ def uploadFile():
 
 
 @app.route("/sources", methods=["GET"])
+@login_required
 def listSources():
     """List all files ingested for a user."""
-    userId = request.args.get("user_id", "default")
+    userId = str(current_user.id)
     retriever = ChromaRetriever(
         persistDirectory=VECTOR_STORE_DIR,
         userId=userId,
@@ -119,9 +193,10 @@ def listSources():
 
 
 @app.route("/sources/<filename>", methods=["DELETE"])
+@login_required
 def deleteSource(filename):
     """Remove a specific uploaded work from the vector store."""
-    userId = request.args.get("userId", "default")
+    userId = str(current_user.id)
     retriever = ChromaRetriever(
         persistDirectory=VECTOR_STORE_DIR,
         userId=userId,
@@ -131,6 +206,7 @@ def deleteSource(filename):
 
 
 @app.route("/generate", methods=["POST"])
+@login_required
 def generate():
     """Generate text in the user's writing voice."""
     data = request.json or {}
@@ -139,7 +215,7 @@ def generate():
     if not prompt:
         return jsonify({"error": "prompt is required"}), 400
 
-    userId    = data.get("userId", "default")
+    userId    = str(current_user.id)
     styleHint = data.get("styleHint", "")
 
     try:
@@ -159,10 +235,11 @@ def generate():
 
 
 @app.route("/styleProfile", methods=["GET"])
+@login_required
 def styleProfile():
     """Return a summary of the user's detected writing style."""
     from rag.agents.agent import buildStyleProfile
-    userId = request.args.get("userId", "default")
+    userId = str(current_user.id)
     retriever = ChromaRetriever(
         persistDirectory=VECTOR_STORE_DIR,
         userId=userId,

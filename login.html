@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — VoiceForge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #111111;
+      --surface:    #1a1a1a;
+      --border:     #2a2a2a;
+      --accent:     #7D1D3F;
+      --accent-hover: #9B2449;
+      --text:       #e8e8e8;
+      --muted:      #888888;
+      --error:      #c0392b;
+      --success:    #27ae60;
+      --radius:     8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 1rem;
+    }
+
+    .brand {
+      text-align: center;
+    }
+    .brand-name {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .brand-name span { color: var(--accent); }
+    .brand-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    /* Tab toggle */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.75rem;
+    }
+    .tab {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.6rem 0;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Form */
+    .form { display: flex; flex-direction: column; gap: 1rem; }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 0.65rem 0.85rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: #444; }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background 0.15s;
+    }
+    .submit-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .error-msg {
+      font-size: 0.85rem;
+      color: var(--error);
+      min-height: 1.2em;
+      text-align: center;
+    }
+
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="brand">
+    <div class="brand-name">Voice<span>Forge</span></div>
+    <div class="brand-sub">Write in your voice. Keep it yours.</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" id="loginTab"    onclick="switchTab('login')">Sign In</button>
+      <button class="tab"        id="registerTab" onclick="switchTab('register')">Create Account</button>
+    </div>
+
+    <!-- Login form -->
+    <form class="form" id="loginForm" onsubmit="handleLogin(event)">
+      <div>
+        <label for="loginUsername">Username</label>
+        <input id="loginUsername" type="text" autocomplete="username" placeholder="your username" required />
+      </div>
+      <div>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required />
+      </div>
+      <div class="error-msg" id="loginError"></div>
+      <button class="submit-btn" type="submit" id="loginBtn">Sign In</button>
+    </form>
+
+    <!-- Register form -->
+    <form class="form" id="registerForm" style="display:none" onsubmit="handleRegister(event)">
+      <div>
+        <label for="regUsername">Username</label>
+        <input id="regUsername" type="text" autocomplete="username" placeholder="choose a username" required minlength="3" />
+      </div>
+      <div>
+        <label for="regPassword">Password</label>
+        <input id="regPassword" type="password" autocomplete="new-password" placeholder="at least 8 characters" required minlength="8" />
+      </div>
+      <div>
+        <label for="regConfirm">Confirm Password</label>
+        <input id="regConfirm" type="password" autocomplete="new-password" placeholder="••••••••" required />
+      </div>
+      <div class="error-msg" id="registerError"></div>
+      <button class="submit-btn" type="submit" id="registerBtn">Create Account</button>
+    </form>
+
+    <p class="hint" id="formHint">Sign in to access your personal writing workspace.</p>
+  </div>
+
+  <script>
+    // If already logged in, go straight to the app
+    fetch('/auth/me').then(r => {
+      if (r.ok) window.location.replace('/');
+    });
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('loginTab').classList.toggle('active', isLogin);
+      document.getElementById('registerTab').classList.toggle('active', !isLogin);
+      document.getElementById('loginForm').style.display    = isLogin ? 'flex' : 'none';
+      document.getElementById('registerForm').style.display = isLogin ? 'none' : 'flex';
+      document.getElementById('loginError').textContent    = '';
+      document.getElementById('registerError').textContent = '';
+      document.getElementById('formHint').textContent = isLogin
+        ? 'Sign in to access your personal writing workspace.'
+        : 'Your writing stays private and local to this server.';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('loginError');
+      btn.disabled = true;
+      err.textContent = '';
+
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('loginUsername').value.trim(),
+            password: document.getElementById('loginPassword').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) { err.textContent = data.error; return; }
+        window.location.replace('/');
+      } catch {
+        err.textContent = 'Network error — is the server running?';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const btn = document.getElementById('registerBtn');
+      const err = document.getElementById('registerError');
+      btn.disabled = true;
+      err.textContent = '';
+
+      const password = document.getElementById('regPassword').value;
+      const confirm  = document.getElementById('regConfirm').value;
+      if (password !== confirm) {
+        err.textContent = 'Passwords do not match';
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch('/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('regUsername').value.trim(),
+            password,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) { err.textContent = data.error; return; }
+        window.location.replace('/');
+      } catch {
+        err.textContent = 'Network error — is the server running?';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -46,8 +46,9 @@ def loadCache(cacheDir: Path, userId: str, currentDocCount: int) -> dict | None:
         return None
 
     return {
-        "styleProfile":  data["styleProfile"],
-        "storyPatterns": data["storyPatterns"],
+        "styleProfile":   data["styleProfile"],
+        "storyPatterns":  data["storyPatterns"],
+        "paragraphStats": data["paragraphStats"],
     }
 
 
@@ -56,6 +57,7 @@ def saveCache(
     userId: str,
     styleProfile: dict,
     storyPatterns: dict,
+    paragraphStats: dict,
     currentDocCount: int,
 ) -> None:
     """
@@ -66,14 +68,16 @@ def saveCache(
         userId:          User whose cache to write.
         styleProfile:    Output from analyzeStyle.
         storyPatterns:   Output from detectStoryPatterns.
+        paragraphStats:  Output from analyzeParagraphs.
         currentDocCount: Number of chunks in the vector store right now.
     """
     cacheDir.mkdir(parents=True, exist_ok=True)
     data = {
-        "styleProfile":  styleProfile,
-        "storyPatterns": storyPatterns,
-        "docCount":      currentDocCount,
-        "cachedAt":      datetime.now(timezone.utc).isoformat(),
+        "styleProfile":   styleProfile,
+        "storyPatterns":  storyPatterns,
+        "paragraphStats": paragraphStats,
+        "docCount":       currentDocCount,
+        "cachedAt":       datetime.now(timezone.utc).isoformat(),
     }
     _cachePath(cacheDir, userId).write_text(
         json.dumps(data, indent=2, ensure_ascii=False),

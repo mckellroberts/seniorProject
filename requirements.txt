@@ -1,0 +1,9 @@
+flask
+flask-cors
+flask-login
+requests
+chromadb
+sentence-transformers
+pdfplumber
+python-docx
+langchain-text-splitters
