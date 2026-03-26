@@ -12,13 +12,41 @@ from .styleAnalyzer import analyzeStyle
 from .storyDetector import detectStoryPatterns
 from .ideaGenerator import generateIdeas
 from .voiceGenerator import generateInVoice
+from .profileCache import loadCache, saveCache
+
+# Cache lives alongside the other data directories
+_CACHE_DIR_NAME = "cache"
 
 
-def buildStyleProfile(retriever: ChromaRetriever) -> dict:
+def _cacheDir(vectorStoreDir: Path) -> Path:
+    return vectorStoreDir.parent / _CACHE_DIR_NAME
+
+
+def _getProfiles(retriever: ChromaRetriever, userId: str, vectorStoreDir: Path) -> tuple[dict, dict]:
+    """
+    Return (styleProfile, storyPatterns), pulling from cache when valid.
+    Runs both agents and writes a fresh cache when the cache is stale or missing.
+    """
+    docCount = retriever.count()
+    cached = loadCache(_cacheDir(vectorStoreDir), userId, docCount)
+    if cached:
+        return cached["styleProfile"], cached["storyPatterns"]
+
+    styleProfile  = analyzeStyle(retriever)
+    storyPatterns = detectStoryPatterns(retriever)
+    saveCache(_cacheDir(vectorStoreDir), userId, styleProfile, storyPatterns, docCount)
+    return styleProfile, storyPatterns
+
+
+def buildStyleProfile(retriever: ChromaRetriever, userId: str = "default", vectorStoreDir: Path | None = None) -> dict:
     """
     Convenience wrapper — returns the full style profile dict.
     Called directly from the /styleProfile Flask route.
+    Uses cache when available.
     """
+    if vectorStoreDir is not None:
+        styleProfile, _ = _getProfiles(retriever, userId, vectorStoreDir)
+        return styleProfile
     return analyzeStyle(retriever)
 
 
@@ -55,11 +83,8 @@ def generateInUserVoice(
             "sourcesUsed":   [],
         }
 
-    # 1. Analyze the user's writing style
-    styleProfile = analyzeStyle(retriever)
-
-    # 2. Detect their narrative/story patterns
-    storyPatterns = detectStoryPatterns(retriever)
+    # 1 & 2. Get style profile and story patterns (from cache if available)
+    styleProfile, storyPatterns = _getProfiles(retriever, userId, vectorStoreDir)
 
     # 3. Generate text using both profiles as context
     generation = generateInVoice(

@@ -170,7 +170,7 @@ def styleProfile():
     if retriever.count() == 0:
         return jsonify({"error": "No writing samples uploaded yet."}), 400
 
-    profile = buildStyleProfile(retriever)
+    profile = buildStyleProfile(retriever, userId=userId, vectorStoreDir=VECTOR_STORE_DIR)
     return jsonify({"userId": userId, "styleProfile": profile})
 
 
