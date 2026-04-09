@@ -59,12 +59,14 @@ app.register_blueprint(auth)
 initDb()
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-BASE_DIR         = Path(__file__).parent
-UPLOAD_FOLDER    = BASE_DIR / "rag" / "data" / "raw"
-VECTOR_STORE_DIR = BASE_DIR / "rag" / "data" / "vectorStore"
+BASE_DIR              = Path(__file__).parent
+UPLOAD_FOLDER         = BASE_DIR / "rag" / "data" / "raw"
+VECTOR_STORE_DIR      = BASE_DIR / "rag" / "data" / "vectorStore"
+DEMO_VECTOR_STORE_DIR = BASE_DIR / "rag" / "data" / "demo" / "vectorStore"
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
+DEMO_VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Ollama ─────────────────────────────────────────────────────────────────────
 
@@ -371,6 +373,93 @@ def dialogue():
         return jsonify(result), 400
 
     return jsonify(result)
+
+
+# ── Demo / Tester Routes ───────────────────────────────────────────────────────
+
+@app.route("/demo/authors", methods=["GET"])
+@login_required
+def listDemoAuthors():
+    """Return all demo authors with metadata and readiness status."""
+    from rag.demo.authors import DEMO_AUTHORS
+    result = []
+    for key, author in DEMO_AUTHORS.items():
+        retriever = ChromaRetriever(persistDirectory=DEMO_VECTOR_STORE_DIR, userId=f"demo_{key}")
+        count = retriever.count()
+        result.append({
+            "key":        key,
+            "name":       author["name"],
+            "era":        author["era"],
+            "style":      author["style"],
+            "prompts":    author["prompts"],
+            "ready":      count > 0,
+            "chunkCount": count,
+        })
+    return jsonify({"authors": result})
+
+
+@app.route("/demo/generate", methods=["POST"])
+@login_required
+def demoGenerate():
+    """Generate text in a demo author's voice."""
+    from rag.demo.authors import DEMO_AUTHORS
+    data      = request.json or {}
+    authorKey = data.get("authorKey", "").strip()
+    prompt    = data.get("prompt", "").strip()
+
+    if not authorKey or not prompt:
+        return jsonify({"error": "authorKey and prompt are required"}), 400
+    if authorKey not in DEMO_AUTHORS:
+        return jsonify({"error": f"Unknown author key: {authorKey}"}), 400
+
+    try:
+        result = generateInUserVoice(
+            prompt=prompt,
+            userId=f"demo_{authorKey}",
+            vectorStoreDir=DEMO_VECTOR_STORE_DIR,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result and not result.get("generatedText"):
+        return jsonify(result), 400
+
+    return jsonify({
+        **result,
+        "authorKey":  authorKey,
+        "authorName": DEMO_AUTHORS[authorKey]["name"],
+    })
+
+
+@app.route("/demo/unstuck", methods=["POST"])
+@login_required
+def demoUnstuck():
+    """Get story suggestions in a demo author's voice."""
+    from rag.demo.authors import DEMO_AUTHORS
+    data      = request.json or {}
+    authorKey = data.get("authorKey", "").strip()
+    context   = data.get("context", "").strip()
+    count     = int(data.get("count", 3))
+
+    if not authorKey:
+        return jsonify({"error": "authorKey is required"}), 400
+    if authorKey not in DEMO_AUTHORS:
+        return jsonify({"error": f"Unknown author key: {authorKey}"}), 400
+
+    try:
+        result = getUnstuck(
+            userId=f"demo_{authorKey}",
+            vectorStoreDir=DEMO_VECTOR_STORE_DIR,
+            context=context,
+            count=count,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify({**result, "authorKey": authorKey})
 
 
 if __name__ == "__main__":

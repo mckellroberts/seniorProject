@@ -599,6 +599,88 @@
     .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
     .modal-fields { display: flex; flex-direction: column; gap: 0.75rem; }
 
+    /* ── Demo Mode ───────────────────────────────────────────────────── */
+    .demo-banner {
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      border-radius: var(--radius); padding: 0.55rem 0.85rem;
+      font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .author-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 0.6rem;
+    }
+    .author-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.85rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .author-card:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+    .author-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+    .author-name { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
+    .author-era { font-family: var(--font-mono); font-size: 0.63rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .author-style { font-size: 0.75rem; color: var(--soft); line-height: 1.45; }
+    .author-badge { font-family: var(--font-mono); font-size: 0.62rem; margin-top: 0.4rem; color: var(--success); }
+    .author-badge.not-ready { color: var(--muted); }
+
+    .demo-prompts-section { display: flex; flex-direction: column; gap: 0.6rem; }
+    .demo-prompts-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+    .demo-prompt-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.6rem 0.85rem;
+      transition: border-color 0.15s;
+    }
+    .demo-prompt-item:hover { border-color: var(--accent-border); }
+    .demo-prompt-text { flex: 1; font-size: 0.84rem; color: var(--text); line-height: 1.4; }
+    .demo-try-btn {
+      background: none; border: 1px solid var(--accent-border);
+      border-radius: 4px; color: var(--accent);
+      font-family: var(--font-mono); font-size: 0.68rem;
+      padding: 0.25rem 0.55rem; cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .demo-try-btn:hover { background: var(--accent-dim); }
+    .demo-try-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+
+    /* ── Demo split layout ───────────────────────────────────────────── */
+    .demo-split { display: flex; gap: 0; min-height: 0; }
+    .demo-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .demo-result-panel {
+      width: 0; overflow: hidden;
+      transition: width 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s;
+      opacity: 0; flex-shrink: 0;
+    }
+    .demo-result-panel.open {
+      width: 340px; opacity: 1;
+      border-left: 1px solid var(--border);
+      margin-left: 1rem; padding-left: 1rem;
+    }
+    .demo-result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .demo-result-title {
+      font-family: var(--font-mono); font-size: 0.68rem;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+    }
+    .demo-result-actions { display: flex; gap: 0.35rem; }
+    .demo-result-action {
+      background: none; border: 1px solid var(--border);
+      border-radius: 4px; color: var(--soft);
+      font-family: var(--font-mono); font-size: 0.65rem;
+      padding: 0.2rem 0.45rem; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .demo-result-action:hover { border-color: var(--accent-border); color: var(--accent); }
+    .demo-result-body {
+      font-size: 0.84rem; line-height: 1.65; color: var(--text);
+      white-space: pre-wrap; overflow-y: auto;
+      max-height: 420px;
+    }
+    .demo-result-body .loading-hint { color: var(--muted); font-style: italic; font-size: 0.84rem; }
+
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
@@ -663,6 +745,10 @@
     </nav>
 
     <div class="sidebar-footer">
+      <button class="nav-item" onclick="openModal('demo')" title="Demo Mode" style="color:var(--accent)">
+        <span class="nav-icon">⚗</span>
+        <span class="nav-label">Demo / Tester</span>
+      </button>
       <button class="nav-item nav-logout" onclick="logout()" title="Sign Out">
         <span class="nav-icon">→</span>
         <span class="nav-label">Sign Out</span>
@@ -905,6 +991,49 @@
     </div>
   </div>
 
+  <!-- ── Demo Modal ──────────────────────────────────────────────────────── -->
+  <div class="overlay" id="demoOverlay" onclick="closeModal('demo')">
+    <div class="modal modal-wide" id="demoModal" onclick="event.stopPropagation()" style="max-width:700px; transition: max-width 0.25s cubic-bezier(0.4,0,0.2,1);">
+      <div class="modal-header">
+        <span class="modal-title">Demo / Tester Mode</span>
+        <button class="modal-close" onclick="closeModal('demo')">✕</button>
+      </div>
+
+      <div class="demo-banner">
+        ⚗ This mode uses classic literature — completely isolated from your personal writing.
+      </div>
+
+      <div class="demo-split">
+        <div class="demo-left">
+          <div>
+            <div class="modal-label" style="margin-bottom:0.5rem;">Select an author to explore their style</div>
+            <div class="author-grid" id="authorGrid">
+              <span class="loading-hint">Loading authors...</span>
+            </div>
+          </div>
+
+          <div class="demo-prompts-section" id="demoPromptsSection" style="display:none;">
+            <div class="demo-prompts-label">Sample prompts for <span id="demoAuthorName"></span></div>
+            <div id="demoPromptsList"></div>
+          </div>
+
+          <div class="status" id="demoStatus"></div>
+        </div>
+
+        <div class="demo-result-panel" id="demoResultPanel">
+          <div class="demo-result-header">
+            <span class="demo-result-title" id="demoResultTitle">Result</span>
+            <div class="demo-result-actions">
+              <button class="demo-result-action" id="demoCopyBtn" onclick="copyDemoResult()" style="display:none">Copy</button>
+              <button class="demo-result-action" onclick="closeDemoResult()">✕</button>
+            </div>
+          </div>
+          <div class="demo-result-body" id="demoResultBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Script ────────────────────────────────────────────────────────────── -->
   <script>
     let USER_ID = null, USERNAME = null;
@@ -1062,8 +1191,10 @@
       area.textContent = text;
       docView.textContent = text;
       [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'inline-block');
-      // Highlight generated tab
       document.getElementById('genTabBtn').style.color = 'var(--accent)';
+      // Reset panel title (may have been set to demo author name)
+      const title = document.querySelector('.gen-panel-title');
+      if (title && !text.startsWith('Error')) title.textContent = 'Generated';
     }
 
     async function copyGenerated() {
@@ -1121,12 +1252,14 @@
       document.getElementById(`${name}Overlay`).classList.add('open');
       if (name === 'works') fetchWorks();
       if (name === 'style') fetchStyleProfile();
+      if (name === 'demo')  fetchDemoAuthors();
     }
     function closeModal(name) {
       document.getElementById(`${name}Overlay`).classList.remove('open');
+      if (name === 'demo') closeDemoResult();
     }
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') ['upload','works','style','ideas','unstuck','scene','dialogue'].forEach(closeModal);
+      if (e.key === 'Escape') ['upload','works','style','ideas','unstuck','scene','dialogue','demo'].forEach(closeModal);
     });
 
     // ── Upload ───────────────────────────────────────────────────────────
@@ -1310,6 +1443,134 @@
           list.appendChild(card);
         });
       } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+    }
+
+    // ── Demo / Tester Mode ────────────────────────────────────────────────
+    let _demoAuthors = {};
+    let _selectedDemoKey = null;
+
+    async function fetchDemoAuthors() {
+      const grid   = document.getElementById('authorGrid');
+      const section = document.getElementById('demoPromptsSection');
+      grid.innerHTML = '<span class="loading-hint">Loading authors...</span>';
+      section.style.display = 'none';
+      _selectedDemoKey = null;
+      _demoAuthors = {};
+
+      try {
+        const res  = await fetch('/demo/authors');
+        const data = await res.json();
+        if (!res.ok) { grid.innerHTML = `<span class="loading-hint">${data.error || 'Failed to load.'}</span>`; return; }
+
+        data.authors.forEach(a => _demoAuthors[a.key] = a);
+        grid.innerHTML = '';
+        data.authors.forEach(a => {
+          const card = document.createElement('div');
+          card.className = 'author-card';
+          card.dataset.key = a.key;
+          card.innerHTML = `
+            <div class="author-name">${a.name}</div>
+            <div class="author-era">${a.era}</div>
+            <div class="author-style">${a.style}</div>
+            <div class="author-badge ${a.ready ? '' : 'not-ready'}">
+              ${a.ready ? `✓ ${a.chunkCount} chunks ready` : '⚠ Run setup_demo.py to load'}
+            </div>`;
+          card.addEventListener('click', () => selectDemoAuthor(a.key));
+          grid.appendChild(card);
+        });
+      } catch {
+        grid.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>';
+      }
+    }
+
+    function selectDemoAuthor(key) {
+      _selectedDemoKey = key;
+      document.querySelectorAll('.author-card').forEach(c =>
+        c.classList.toggle('selected', c.dataset.key === key)
+      );
+
+      const author  = _demoAuthors[key];
+      const section = document.getElementById('demoPromptsSection');
+      const list    = document.getElementById('demoPromptsList');
+      document.getElementById('demoAuthorName').textContent = author.name;
+      document.getElementById('demoStatus').className = 'status';
+      list.innerHTML = '';
+      section.style.display = 'flex';
+
+      (author.prompts || []).forEach(prompt => {
+        const item = document.createElement('div');
+        item.className = 'demo-prompt-item';
+        item.innerHTML = `
+          <span class="demo-prompt-text">${prompt}</span>
+          <button class="demo-try-btn" onclick="runDemoPrompt(${JSON.stringify(key)}, ${JSON.stringify(prompt)}, this)">Try →</button>`;
+        list.appendChild(item);
+      });
+    }
+
+    let _demoResultText = '';
+
+    function openDemoResultPanel(title) {
+      const panel = document.getElementById('demoResultPanel');
+      const modal = document.getElementById('demoModal');
+      document.getElementById('demoResultTitle').textContent = title || 'Result';
+      document.getElementById('demoCopyBtn').style.display = 'none';
+      document.getElementById('demoResultBody').innerHTML =
+        '<span class="loading-hint">Generating…</span>';
+      panel.classList.add('open');
+      modal.style.maxWidth = '1060px';
+    }
+
+    function closeDemoResult() {
+      const panel = document.getElementById('demoResultPanel');
+      const modal = document.getElementById('demoModal');
+      panel.classList.remove('open');
+      modal.style.maxWidth = '700px';
+      // Deactivate any active try button
+      document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
+    }
+
+    function copyDemoResult() {
+      navigator.clipboard.writeText(_demoResultText);
+      const btn = document.getElementById('demoCopyBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    }
+
+    async function runDemoPrompt(authorKey, prompt, btn) {
+      const author = _demoAuthors[authorKey];
+
+      // Mark active try button
+      document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      openDemoResultPanel(author?.name || authorKey);
+
+      if (!author?.ready) {
+        document.getElementById('demoResultBody').textContent =
+          `"${author?.name || authorKey}" is not ingested yet.\n\nRun: python scripts/setup_demo.py --author ${authorKey}`;
+        return;
+      }
+
+      try {
+        const res  = await fetch('/demo/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ authorKey, prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          document.getElementById('demoResultBody').textContent =
+            `Error: ${data.error || 'Generation failed'}`;
+        } else {
+          _demoResultText = data.generatedText || '';
+          document.getElementById('demoResultBody').textContent = _demoResultText;
+          document.getElementById('demoCopyBtn').style.display = 'inline-block';
+        }
+      } catch {
+        document.getElementById('demoResultBody').textContent =
+          'Network error — is the server running?';
+      }
     }
 
     // ── Continue Writing ──────────────────────────────────────────────────
