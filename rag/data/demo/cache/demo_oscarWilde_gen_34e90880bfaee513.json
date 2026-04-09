@@ -1,0 +1,60 @@
+{
+  "fingerprint": "12cbe6726e42f97c",
+  "result": {
+    "generatedText": "She had an aura about her that was at once both captivating and disquieting – like a moth drawn helplessly to a flame, but never quite touching it. Her eyes shone bright with a fervent intensity, as if the very essence of romance had been distilled within them. It was as if she saw the world through the prism of Cupid's arrow, every moment a potential declaration of undying devotion.\n\nHer smile, that rare and fleeting thing, could light up an entire room like a benediction from on high. But it was not the smile itself that was captivating – rather, the underlying conviction that underlay it: that love was always just around the corner, waiting to sweep her off her feet like a dervish in the desert.\n\nShe had an endless fascination with the mythology of love – the sonnets, the sonatas, the swooning ballads of bygone eras. Her mind was a repository of romantic clichés and overused tropes, yet she wore them with such conviction that one couldn't help but be swept up in her fervor.\n\nIn conversations, she spoke of love as if it were a state of being – a quality to be cultivated, like a rare flower in need of tending. Her tone was hushed, reverent, and just slightly absurd, as if the very words themselves might awaken some long-dormant spark within another person's heart.\n\nIt was not that she was jaded or cynical about love; far from it. It was simply that her ideal had become so all-consuming, so blindingly radiant, that she had lost sight of the actual people around her. She saw only the ideals, the fantasies, the mythical constructs – and mistook them for reality.\n\nIn her presence, one couldn't help but feel like a stranger in a strange land, an outsider to the mystical realm of which she was the priestess. And yet, there was something undeniably alluring about her – a sense that, even if she never found true love herself, she might just be able to transmit its essence to others, like a balm or a talisman.\n\nFor in the end, it wasn't that she loved people; it was that she loved the idea of loving them. And that, perhaps, was the greatest cruelty of all.",
+    "styleProfile": {
+      "sentences": {
+        "error": "Ollama request failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)",
+        "raw": ""
+      },
+      "vocabulary": {
+        "error": "Ollama request failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)",
+        "raw": ""
+      },
+      "tone": {
+        "raw": "PRIMARY_TONE:  Sardonic/Hopeful (with underlying Melancholic)\nTONE_RANGE:  Narrow (the author primarily stays in the sardonic register, with occasional shifts to hopeful and melancholic)\n\nEMOTIONAL_DEPTH:  Moderate (the author explores a range of emotions, but not to an extreme degree; the characters' emotional states are largely implicit rather than explicitly stated)\n\nATMOSPHERIC_WORDS:  Words like \"hand-bag\", \"happiness\", \"hereditary\", and \"chill\" create a sense of playfulness, absurdity, and nervous tension.\n\nTONE_SHIFTS:  The author shifts tone through dialogue and character interactions, often via the contrast between Jack's serious speech and the more lighthearted responses from his friends.",
+        "primaryTone": "Sardonic/Hopeful (with underlying Melancholic)",
+        "toneRange": "Narrow (the author primarily stays in the sardonic register, with occasional shifts to hopeful and melancholic)",
+        "emotionalDepth": "Moderate (the author explores a range of emotions, but not to an extreme degree; the characters' emotional states are largely implicit rather than explicitly stated)",
+        "atmosphericWords": "Words like \"hand-bag\", \"happiness\", \"hereditary\", and \"chill\" create a sense of playfulness, absurdity, and nervous tension.",
+        "toneShifts": "The author shifts tone through dialogue and character interactions, often via the contrast between Jack's serious speech and the more lighthearted responses from his friends."
+      }
+    },
+    "storyPatterns": {
+      "error": "Ollama request failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)",
+      "raw": ""
+    },
+    "paragraphStats": {
+      "sentenceLength": {
+        "avg": 12.9,
+        "min": 1,
+        "max": 45,
+        "distribution": {
+          "short": "57%",
+          "medium": "19%",
+          "long": "24%"
+        }
+      },
+      "paragraphLength": {
+        "avgSentences": 3.6,
+        "avgWords": 46.3
+      },
+      "dialogueRatio": 0.0,
+      "punctuationHabits": {
+        "emDash": 0,
+        "ellipsis": 0,
+        "semicolon": 0,
+        "exclamation": 3,
+        "question": 3
+      },
+      "sampleSize": {
+        "chunks": 15,
+        "sentences": 54
+      }
+    },
+    "sourcesUsed": [
+      "pg844.txt"
+    ]
+  },
+  "cachedAt": "2026-04-09T09:35:17.754145+00:00"
+}

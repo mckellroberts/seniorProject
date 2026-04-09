@@ -1,1710 +1,2525 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VoiceForge</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:             #111111;
-      --surface:        #1a1a1a;
-      --surface2:       #222222;
-      --border:         #2a2a2a;
-      --accent:         #7D1D3F;
-      --accent-hover:   #9B2449;
-      --accent-dim:     rgba(125, 29, 63, 0.15);
-      --accent-border:  rgba(125, 29, 63, 0.4);
-      --text:           #e8e8e8;
-      --soft:           #aaaaaa;
-      --muted:          #888888;
-      --success:        #27ae60;
-      --success-bg:     rgba(39, 174, 96, 0.08);
-      --success-bdr:    rgba(39, 174, 96, 0.25);
-      --error:          #c0392b;
-      --error-bg:       rgba(192, 57, 43, 0.08);
-      --error-bdr:      rgba(192, 57, 43, 0.25);
-      --doc-bg:         #f0eeeb;
-      --doc-text:       #1a1a1a;
-      --sidebar-w:      220px;
-      --sidebar-w-sm:   52px;
-      --topbar-h:       44px;
-      --radius:         8px;
-      --font-mono:      ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
-      --font-sans:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --font-serif:     'Georgia', 'Times New Roman', serif;
-    }
-
-    html, body { height: 100%; overflow: hidden; }
-
-    body {
-      font-family: var(--font-sans);
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-    }
-
-    /* ── Sidebar ──────────────────────────────────────────────────────── */
-    .sidebar {
-      width: var(--sidebar-w-sm);
-      height: 100vh;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
-      overflow: hidden;
-    }
-    .sidebar.expanded { width: var(--sidebar-w); }
-
-    .sidebar-header {
-      height: var(--topbar-h);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0 0.75rem;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .toggle-btn {
-      width: 32px; height: 32px;
-      flex-shrink: 0;
-      background: none; border: none;
-      color: var(--soft);
-      cursor: pointer;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s, color 0.15s;
-    }
-    .toggle-btn:hover { background: var(--surface2); color: var(--text); }
-
-    .brand-label {
-      font-size: 1rem; font-weight: 700;
-      color: var(--text); letter-spacing: -0.5px;
-      white-space: nowrap;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.15s;
-    }
-    .brand-label span { color: var(--accent); }
-    .sidebar.expanded .brand-label { opacity: 1; pointer-events: auto; }
-
-    .sidebar-user {
-      display: flex; align-items: center; gap: 0.65rem;
-      padding: 1rem 0.75rem;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0; min-width: 0;
-    }
-
-    .user-avatar {
-      width: 32px; height: 32px; flex-shrink: 0;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #fff; font-size: 0.8rem; font-weight: 600;
-      display: flex; align-items: center; justify-content: center;
-      text-transform: uppercase;
-    }
-
-    .user-info {
-      overflow: hidden;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.15s;
-    }
-    .sidebar.expanded .user-info { opacity: 1; pointer-events: auto; }
-
-    .username {
-      font-size: 0.85rem; font-weight: 500; color: var(--text);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .user-sub { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); }
-
-    .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; overflow-x: hidden; }
-
-    .nav-item {
-      width: 100%;
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.6rem 0.75rem;
-      background: none; border: none;
-      color: var(--soft);
-      font-family: var(--font-sans); font-size: 0.85rem;
-      cursor: pointer; text-align: left; white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
-    }
-    .nav-item:hover { background: var(--surface2); color: var(--text); }
-
-    .nav-icon {
-      width: 20px; height: 20px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.9rem;
-    }
-
-    .nav-label {
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.15s;
-    }
-    .sidebar.expanded .nav-label { opacity: 1; pointer-events: auto; }
-
-    .sidebar-footer { border-top: 1px solid var(--border); padding: 0.5rem 0; flex-shrink: 0; }
-    .nav-logout { color: var(--muted); }
-    .nav-logout:hover { color: var(--error); background: var(--error-bg); }
-
-    /* ── Main ─────────────────────────────────────────────────────────── */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-      min-width: 0;
-      position: relative;
-    }
-
-    /* Topbar */
-    .topbar {
-      height: var(--topbar-h);
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1.25rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-    }
-
-    .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
-
-    .topbar-brand {
-      font-size: 1rem; font-weight: 700;
-      color: var(--text); letter-spacing: -0.5px;
-    }
-    .topbar-brand span { color: var(--accent); }
-
-    .topbar-mode-pills {
-      display: flex; gap: 2px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 2px;
-    }
-    .mode-pill {
-      background: none; border: none;
-      color: var(--muted);
-      font-family: var(--font-sans); font-size: 0.78rem; font-weight: 500;
-      padding: 0.3rem 0.65rem; border-radius: 4px;
-      cursor: pointer; white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
-    }
-    .mode-pill:hover { color: var(--soft); }
-    .mode-pill.active { background: var(--accent); color: #fff; }
-
-    .topbar-right { display: flex; align-items: center; gap: 0.5rem; }
-
-    .topbar-stat {
-      font-family: var(--font-mono); font-size: 0.68rem;
-      color: var(--muted); white-space: nowrap;
-    }
-
-    /* ── Document workspace ───────────────────────────────────────────── */
-    .workspace {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      position: relative;
-      background:
-        radial-gradient(ellipse at 20% 50%, rgba(125,29,63,0.04) 0%, transparent 60%),
-        var(--bg);
-    }
-
-    /* Document column */
-    .doc-column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      overflow-y: auto;
-      padding: 2.5rem 1.5rem 1rem;
-      gap: 0;
-    }
-
-    /* The paper itself */
-    .doc-paper {
-      width: 100%;
-      max-width: 680px;
-      min-height: 480px;
-      flex: 1;
-      background: var(--doc-bg);
-      border-radius: 4px;
-      box-shadow:
-        0 2px 4px rgba(0,0,0,0.4),
-        0 8px 24px rgba(0,0,0,0.5),
-        0 24px 48px rgba(0,0,0,0.3);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .doc-paper-tabs {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.5rem 1rem;
-      background: #e4e2df;
-      border-bottom: 1px solid #ccc;
-      flex-shrink: 0;
-    }
-
-    .doc-tab-group { display: flex; gap: 2px; }
-
-    .doc-tab {
-      background: none; border: none;
-      font-family: var(--font-sans); font-size: 0.72rem;
-      font-weight: 500; letter-spacing: 0.03em;
-      color: #777;
-      padding: 0.25rem 0.65rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-    .doc-tab:hover { background: rgba(0,0,0,0.06); color: #333; }
-    .doc-tab.active {
-      background: white;
-      color: #222;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    }
-
-    .doc-paper-actions { display: flex; gap: 0.35rem; }
-
-    .doc-action-btn {
-      background: none;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.68rem;
-      font-family: var(--font-mono);
-      color: #888;
-      padding: 0.2rem 0.5rem;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .doc-action-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* Actual textarea inside the doc */
-    .writing-area {
-      flex: 1;
-      width: 100%;
-      min-height: 400px;
-      background: transparent;
-      border: none; outline: none; resize: none;
-      color: var(--doc-text);
-      font-family: var(--font-serif);
-      font-size: 1rem;
-      line-height: 1.85;
-      padding: 2rem 3rem;
-      caret-color: var(--accent);
-    }
-    .writing-area::placeholder { color: #b0aca7; font-style: italic; }
-
-    /* Generated panel (right side) */
-    .gen-panel {
-      width: 0;
-      overflow: hidden;
-      transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
-      flex-shrink: 0;
-      border-left: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-    }
-    .gen-panel.open { width: 340px; }
-
-    .gen-panel-header {
-      height: var(--topbar-h);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      flex-shrink: 0;
-    }
-
-    .gen-panel-title {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-    }
-
-    .gen-panel-actions { display: flex; gap: 0.35rem; }
-
-    .mini-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-family: var(--font-mono); font-size: 0.68rem;
-      padding: 0.2rem 0.55rem; border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .mini-btn:hover { border-color: var(--accent-border); color: var(--accent); }
-
-    .gen-panel-body {
-      flex: 1; overflow-y: auto;
-      padding: 1.25rem;
-      font-family: var(--font-sans); font-size: 0.88rem;
-      line-height: 1.75; color: var(--soft);
-      white-space: pre-wrap; word-break: break-word;
-    }
-    .empty-hint { color: var(--muted); font-style: italic; font-size: 0.82rem; }
-
-    /* ── Action bar ───────────────────────────────────────────────────── */
-    .action-bar {
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-    }
-
-    /* Style hint row */
-    .opts-row {
-      display: none;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.45rem 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .opts-row.open { display: flex; }
-    .opts-row label {
-      font-family: var(--font-mono); font-size: 0.68rem;
-      color: var(--muted); white-space: nowrap;
-      text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    .opts-row input {
-      flex: 1; background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text); font-family: var(--font-sans); font-size: 0.85rem;
-      padding: 0.35rem 0.75rem; outline: none;
-      transition: border-color 0.15s;
-    }
-    .opts-row input:focus { border-color: var(--accent-border); }
-    .opts-row input::placeholder { color: #444; }
-
-    /* Input row */
-    .action-input-row {
-      display: flex;
-      align-items: flex-end;
-      gap: 0.5rem;
-      padding: 0.65rem 0.75rem;
-    }
-
-    .action-input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-family: var(--font-sans); font-size: 0.88rem;
-      padding: 0.5rem 0.85rem;
-      outline: none; resize: none; line-height: 1.4;
-      max-height: 120px; overflow-y: auto;
-      transition: border-color 0.15s;
-    }
-    .action-input:focus { border-color: var(--accent-border); }
-    .action-input::placeholder { color: #444; }
-
-    .action-icon-btn {
-      width: 36px; height: 36px; flex-shrink: 0;
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--muted); font-size: 0.9rem;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.15s;
-    }
-    .action-icon-btn:hover { border-color: var(--accent-border); color: var(--accent); }
-    .action-icon-btn.active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
-
-    .action-send-btn {
-      width: 36px; height: 36px; flex-shrink: 0;
-      background: var(--accent); border: none;
-      border-radius: var(--radius);
-      color: #fff; font-size: 1rem;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    .action-send-btn:hover { background: var(--accent-hover); }
-    .action-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* Stats strip */
-    .stats-strip {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.3rem 1rem;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-    }
-    .stat { font-family: var(--font-mono); font-size: 0.65rem; color: var(--soft); white-space: nowrap; }
-    .stat-dim { color: var(--muted); }
-    .stat-sep { color: var(--border); font-size: 0.8rem; }
-
-    /* Loading spinner */
-    .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Modals ───────────────────────────────────────────────────────── */
-    .overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: none;
-      align-items: center; justify-content: center;
-      z-index: 100; padding: 1rem;
-    }
-    .overlay.open { display: flex; }
-
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      width: 100%; max-width: 480px;
-      max-height: 85vh; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 1rem;
-    }
-    .modal-wide { max-width: 640px; }
-
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
-    }
-    .modal-title { font-size: 1rem; font-weight: 500; color: var(--text); }
-    .modal-close {
-      background: none; border: none; color: var(--muted);
-      font-size: 0.9rem; cursor: pointer;
-      padding: 0.25rem; border-radius: 4px;
-      transition: color 0.15s;
-    }
-    .modal-close:hover { color: var(--text); }
-    .modal-sub { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: -0.5rem; }
-
-    .modal-btn {
-      width: 100%; background: var(--accent); border: none;
-      border-radius: var(--radius); color: #fff;
-      font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
-      padding: 0.7rem; cursor: pointer;
-      transition: background 0.15s; flex-shrink: 0;
-    }
-    .modal-btn:hover:not(:disabled) { background: var(--accent-hover); }
-    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .modal-btn-sm { width: auto; padding: 0.4rem 0.9rem; font-size: 0.82rem; }
-
-    /* Drop zone */
-    .drop-zone {
-      border: 1.5px dashed var(--border); border-radius: var(--radius);
-      padding: 1.75rem 1rem; text-align: center; cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-    }
-    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-border); background: var(--accent-dim); }
-    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .drop-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
-    .drop-zone p { font-size: 0.83rem; color: var(--soft); }
-    .drop-zone span { color: var(--accent); font-weight: 500; }
-    .drop-hint { font-family: var(--font-mono); font-size: 0.67rem; color: var(--muted); margin-top: 0.35rem; }
-
-    .file-list { display: flex; flex-direction: column; gap: 0.4rem; }
-    .file-item {
-      display: flex; align-items: center; gap: 0.6rem;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.82rem;
-      animation: slideIn 0.15s ease;
-    }
-    @keyframes slideIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
-    .file-icon { font-size: 1.1rem; flex-shrink: 0; }
-    .file-info { flex: 1; overflow: hidden; }
-    .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
-    .file-size { color: var(--muted); font-size: 0.7rem; font-family: var(--font-mono); }
-    .remove-btn {
-      background: none; border: none; color: var(--muted);
-      cursor: pointer; font-size: 0.9rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s;
-    }
-    .remove-btn:hover { color: var(--error); }
-
-    .progress-wrap { height: 2px; background: var(--border); border-radius: 999px; overflow: hidden; display: none; }
-    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); width: 0%; border-radius: 999px; transition: width 0.3s ease; }
-
-    .status { padding: 0.6rem 0.85rem; border-radius: var(--radius); font-size: 0.8rem; display: none; font-family: var(--font-mono); }
-    .status.success { display: block; background: var(--success-bg); border: 1px solid var(--success-bdr); color: var(--success); }
-    .status.error { display: block; background: var(--error-bg); border: 1px solid var(--error-bdr); color: var(--error); }
-
-    .works-list { display: flex; flex-direction: column; gap: 0.4rem; min-height: 60px; }
-    .work-item { display: flex; align-items: center; gap: 0.65rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; }
-    .work-name { flex: 1; font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .loading-hint { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 0.5rem 0; }
-
-    .style-content { display: flex; flex-direction: column; gap: 1rem; }
-    .style-section-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.35rem; }
-    .style-section-body { font-size: 0.87rem; color: var(--soft); line-height: 1.6; }
-
-    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-    .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
-    .stat-card-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.3rem; }
-    .stat-card-value { font-size: 1.1rem; font-weight: 600; color: var(--text); }
-    .stat-card-sub { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.2rem; }
-
-    .ideas-controls { display: flex; gap: 0.6rem; align-items: center; }
-    .ideas-controls input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--font-sans); font-size: 0.88rem; padding: 0.45rem 0.75rem; outline: none; transition: border-color 0.15s; }
-    .ideas-controls input:focus { border-color: var(--accent-border); }
-    .ideas-controls input::placeholder { color: #444; }
-    .ideas-list { display: flex; flex-direction: column; gap: 0.75rem; }
-    .idea-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; animation: slideIn 0.2s ease; }
-    .idea-text { font-size: 0.9rem; color: var(--text); font-weight: 500; margin-bottom: 0.4rem; }
-    .idea-hook { font-size: 0.82rem; color: var(--soft); margin-bottom: 0.2rem; }
-    .idea-fit { font-size: 0.78rem; color: var(--muted); font-style: italic; }
-
-    .suggestion-card { display: flex; gap: 0.75rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; animation: slideIn 0.2s ease; }
-    .suggestion-num { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); font-weight: 700; flex-shrink: 0; width: 1.2rem; margin-top: 0.15rem; }
-    .suggestion-body { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
-    .suggestion-text { font-size: 0.9rem; color: var(--text); line-height: 1.55; }
-    .suggestion-root { font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono); }
-    .suggestion-fit { font-size: 0.75rem; color: var(--muted); font-style: italic; }
-
-    .modal-field { display: flex; flex-direction: column; gap: 0.35rem; }
-    .modal-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-    .modal-label span { color: var(--accent); }
-    .modal-input, .modal-textarea {
-      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-      color: var(--text); font-family: var(--font-sans); font-size: 0.88rem;
-      padding: 0.45rem 0.75rem; outline: none; width: 100%;
-      transition: border-color 0.15s;
-    }
-    .modal-input::placeholder, .modal-textarea::placeholder { color: #444; }
-    .modal-input:focus, .modal-textarea:focus { border-color: var(--accent-border); }
-    .modal-textarea { resize: none; line-height: 1.4; padding: 0.5rem 0.75rem; }
-    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-    .modal-fields { display: flex; flex-direction: column; gap: 0.75rem; }
-
-    /* ── Demo Mode ───────────────────────────────────────────────────── */
-    .demo-banner {
-      background: var(--accent-dim); border: 1px solid var(--accent-border);
-      border-radius: var(--radius); padding: 0.55rem 0.85rem;
-      font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent);
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .author-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
-      gap: 0.6rem;
-    }
-    .author-card {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 0.85rem;
-      cursor: pointer; transition: border-color 0.15s, background 0.15s;
-    }
-    .author-card:hover { border-color: var(--accent-border); background: var(--accent-dim); }
-    .author-card.selected { border-color: var(--accent); background: var(--accent-dim); }
-    .author-name { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
-    .author-era { font-family: var(--font-mono); font-size: 0.63rem; color: var(--muted); margin-bottom: 0.4rem; }
-    .author-style { font-size: 0.75rem; color: var(--soft); line-height: 1.45; }
-    .author-badge { font-family: var(--font-mono); font-size: 0.62rem; margin-top: 0.4rem; color: var(--success); }
-    .author-badge.not-ready { color: var(--muted); }
-
-    .demo-prompts-section { display: flex; flex-direction: column; gap: 0.6rem; }
-    .demo-prompts-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
-    .demo-prompt-item {
-      display: flex; align-items: center; gap: 0.6rem;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 0.6rem 0.85rem;
-      transition: border-color 0.15s;
-    }
-    .demo-prompt-item:hover { border-color: var(--accent-border); }
-    .demo-prompt-text { flex: 1; font-size: 0.84rem; color: var(--text); line-height: 1.4; }
-    .demo-try-btn {
-      background: none; border: 1px solid var(--accent-border);
-      border-radius: 4px; color: var(--accent);
-      font-family: var(--font-mono); font-size: 0.68rem;
-      padding: 0.25rem 0.55rem; cursor: pointer; white-space: nowrap;
-      transition: background 0.15s;
-    }
-    .demo-try-btn:hover { background: var(--accent-dim); }
-    .demo-try-btn.active { background: var(--accent-dim); border-color: var(--accent); }
-
-    /* ── Demo split layout ───────────────────────────────────────────── */
-    .demo-split { display: flex; gap: 0; min-height: 0; }
-    .demo-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
-    .demo-result-panel {
-      width: 0; overflow: hidden;
-      transition: width 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s;
-      opacity: 0; flex-shrink: 0;
-    }
-    .demo-result-panel.open {
-      width: 340px; opacity: 1;
-      border-left: 1px solid var(--border);
-      margin-left: 1rem; padding-left: 1rem;
-    }
-    .demo-result-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 0.6rem;
-    }
-    .demo-result-title {
-      font-family: var(--font-mono); font-size: 0.68rem;
-      text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
-    }
-    .demo-result-actions { display: flex; gap: 0.35rem; }
-    .demo-result-action {
-      background: none; border: 1px solid var(--border);
-      border-radius: 4px; color: var(--soft);
-      font-family: var(--font-mono); font-size: 0.65rem;
-      padding: 0.2rem 0.45rem; cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .demo-result-action:hover { border-color: var(--accent-border); color: var(--accent); }
-    .demo-result-body {
-      font-size: 0.84rem; line-height: 1.65; color: var(--text);
-      white-space: pre-wrap; overflow-y: auto;
-      max-height: 420px;
-    }
-    .demo-result-body .loading-hint { color: var(--muted); font-style: italic; font-size: 0.84rem; }
-
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-    @media (max-width: 720px) {
-      .sidebar { position: fixed; z-index: 50; height: 100vh; }
-      .gen-panel.open { width: 100%; position: fixed; inset: 0; z-index: 40; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <button class="toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
-      <span class="brand-label">Voice<span>Forge</span></span>
-    </div>
-
-    <div class="sidebar-user">
-      <div class="user-avatar" id="userAvatar">?</div>
-      <div class="user-info">
-        <div class="username" id="sidebarUsername">Loading...</div>
-        <div class="user-sub">writer</div>
-      </div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <button class="nav-item" onclick="openModal('upload')" title="Upload Files">
-        <span class="nav-icon">↑</span>
-        <span class="nav-label">Upload Files</span>
-      </button>
-      <button class="nav-item" onclick="openModal('works')" title="My Works">
-        <span class="nav-icon">≡</span>
-        <span class="nav-label">My Works</span>
-      </button>
-      <button class="nav-item" onclick="openModal('style')" title="Style Profile">
-        <span class="nav-icon">◈</span>
-        <span class="nav-label">Style Profile</span>
-      </button>
-      <button class="nav-item" onclick="openModal('ideas')" title="Writing Ideas">
-        <span class="nav-icon">✦</span>
-        <span class="nav-label">Writing Ideas</span>
-      </button>
-      <button class="nav-item" onclick="continueFromDraft()" title="Continue Writing">
-        <span class="nav-icon">→</span>
-        <span class="nav-label">Continue Writing</span>
-      </button>
-      <button class="nav-item" onclick="openModal('unstuck')" title="I'm Stuck">
-        <span class="nav-icon">⊘</span>
-        <span class="nav-label">I'm Stuck</span>
-      </button>
-      <button class="nav-item" onclick="openModal('scene')" title="Write a Scene">
-        <span class="nav-icon">◻</span>
-        <span class="nav-label">Write a Scene</span>
-      </button>
-      <button class="nav-item" onclick="openModal('dialogue')" title="Write Dialogue">
-        <span class="nav-icon">❝</span>
-        <span class="nav-label">Write Dialogue</span>
-      </button>
-    </nav>
-
-    <div class="sidebar-footer">
-      <button class="nav-item" onclick="openModal('demo')" title="Demo Mode" style="color:var(--accent)">
-        <span class="nav-icon">⚗</span>
-        <span class="nav-label">Demo / Tester</span>
-      </button>
-      <button class="nav-item nav-logout" onclick="logout()" title="Sign Out">
-        <span class="nav-icon">→</span>
-        <span class="nav-label">Sign Out</span>
-      </button>
-    </div>
-  </aside>
-
-  <!-- ── Main ─────────────────────────────────────────────────────────────── -->
-  <div class="main" id="main">
-
-    <!-- Topbar -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <span class="topbar-brand">Voice<span>Forge</span></span>
-        <div class="topbar-mode-pills">
-          <button class="mode-pill active" data-mode="generate" onclick="setMode('generate')">Generate</button>
-          <button class="mode-pill" data-mode="ideas"    onclick="setMode('ideas')">Ideas</button>
-          <button class="mode-pill" data-mode="analyze"  onclick="setMode('analyze')">Analyze</button>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <span class="topbar-stat" id="draftWordCount">0 words</span>
-      </div>
-    </header>
-
-    <!-- Workspace: document + generated panel -->
-    <div class="workspace">
-
-      <!-- Document column -->
-      <div class="doc-column" id="docColumn">
-        <div class="doc-paper">
-          <div class="doc-paper-tabs">
-            <div class="doc-tab-group">
-              <button class="doc-tab active" onclick="showDocTab('draft', this)">Draft</button>
-              <button class="doc-tab" onclick="showDocTab('generated', this)" id="genTabBtn">Generated</button>
-            </div>
-            <div class="doc-paper-actions">
-              <button class="doc-action-btn" id="continueBtn" onclick="continueFromDraft()">Continue →</button>
-              <button class="doc-action-btn" id="insertBtn" style="display:none" onclick="insertGenerated()">← Insert</button>
-              <button class="doc-action-btn" id="copyBtn"   style="display:none" onclick="copyGenerated()">Copy</button>
-            </div>
-          </div>
-
-          <!-- Draft view -->
-          <textarea class="writing-area" id="draftArea"
-            placeholder="Start writing here. This space is yours."></textarea>
-
-          <!-- Generated view (hidden initially) -->
-          <div class="writing-area" id="generatedDocView"
-            style="display:none; overflow-y:auto; cursor:default;">
-            <span class="empty-hint" id="genHint">Generated text will appear here</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Side generated panel (optional) -->
-      <div class="gen-panel" id="genPanel">
-        <div class="gen-panel-header">
-          <span class="gen-panel-title">Generated</span>
-          <div class="gen-panel-actions">
-            <button class="mini-btn" id="sideInsertBtn" style="display:none" onclick="insertGenerated()">Insert →</button>
-            <button class="mini-btn" id="sideCopyBtn"   style="display:none" onclick="copyGenerated()">Copy</button>
-            <button class="mini-btn" onclick="closeGenPanel()">✕</button>
-          </div>
-        </div>
-        <div class="gen-panel-body" id="generatedArea">
-          <span class="empty-hint">Generated text will appear here</span>
-        </div>
-      </div>
-
-    </div><!-- .workspace -->
-
-    <!-- Style hint row -->
-    <div class="action-bar">
-      <div class="opts-row" id="optsRow">
-        <label>Style hint</label>
-        <input type="text" id="styleHintInput" placeholder="e.g. more melancholy, shorter sentences..." />
-      </div>
-
-      <!-- Input row -->
-      <div class="action-input-row">
-        <textarea class="action-input" id="actionInput" rows="1"
-          placeholder="Describe what you want written..."></textarea>
-        <button class="action-icon-btn" id="optBtn" onclick="toggleOpts()" title="Style hint">⚙</button>
-        <button class="action-send-btn" id="sendBtn" onclick="handleSend()">↑</button>
-      </div>
-
-      <!-- Stats strip -->
-      <div class="stats-strip">
-        <span class="stat" id="statDraftWords">0 words in draft</span>
-        <span class="stat-sep">·</span>
-        <span class="stat stat-dim" id="statAvgSentence">avg sentence: —</span>
-        <span class="stat-sep">·</span>
-        <span class="stat stat-dim" id="statDialogue">dialogue: —</span>
-        <span class="stat-sep">·</span>
-        <span class="stat stat-dim" id="statEmDash">em-dash: —</span>
-      </div>
-    </div>
-
-  </div><!-- .main -->
-
-  <!-- ── Upload Modal ──────────────────────────────────────────────────────── -->
-  <div class="overlay" id="uploadOverlay" onclick="closeModal('upload')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">Upload Writing Samples</span>
-        <button class="modal-close" onclick="closeModal('upload')">✕</button>
-      </div>
-      <p class="modal-sub">Supported: .txt · .pdf · .md · .docx</p>
-      <div class="drop-zone" id="dropZone">
-        <input type="file" id="fileInput" multiple accept=".txt,.pdf,.md,.docx" />
-        <div class="drop-icon">⬆</div>
-        <p><span>Click to browse</span> or drag files here</p>
-        <p class="drop-hint">The more you upload, the better the voice match</p>
-      </div>
-      <div class="file-list" id="fileList"></div>
-      <div class="progress-wrap" id="uploadProgress">
-        <div class="progress-bar" id="uploadBar"></div>
-      </div>
-      <button class="modal-btn" id="uploadBtn" disabled>Upload Files</button>
-      <div class="status" id="uploadStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── My Works Modal ───────────────────────────────────────────────────── -->
-  <div class="overlay" id="worksOverlay" onclick="closeModal('works')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">My Uploaded Works</span>
-        <button class="modal-close" onclick="closeModal('works')">✕</button>
-      </div>
-      <div class="works-list" id="worksList"><span class="loading-hint">Loading...</span></div>
-      <div class="status" id="worksStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── Style Profile Modal ──────────────────────────────────────────────── -->
-  <div class="overlay" id="styleOverlay" onclick="closeModal('style')">
-    <div class="modal modal-wide" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">Your Style Profile</span>
-        <button class="modal-close" onclick="closeModal('style')">✕</button>
-      </div>
-      <div class="style-content" id="styleContent">
-        <span class="loading-hint">Analyzing your writing...</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Ideas Modal ──────────────────────────────────────────────────────── -->
-  <div class="overlay" id="ideasOverlay" onclick="closeModal('ideas')">
-    <div class="modal modal-wide" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">Writing Ideas</span>
-        <button class="modal-close" onclick="closeModal('ideas')">✕</button>
-      </div>
-      <div class="ideas-controls">
-        <input type="text" id="ideasTopicInput" placeholder="Optional topic or theme..." />
-        <button class="modal-btn modal-btn-sm" onclick="fetchIdeas()">Generate Ideas</button>
-      </div>
-      <div class="ideas-list" id="ideasList"></div>
-      <div class="status" id="ideasStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── Unstuck Modal ───────────────────────────────────────────────────── -->
-  <div class="overlay" id="unstuckOverlay" onclick="closeModal('unstuck')">
-    <div class="modal modal-wide" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">I'm Stuck</span>
-        <button class="modal-close" onclick="closeModal('unstuck')">✕</button>
-      </div>
-      <p class="modal-sub">Story-grounded suggestions for what could happen next</p>
-      <div class="ideas-controls">
-        <input type="text" id="unstuckContext" class="modal-input" placeholder="Optional: describe where you're stuck..." />
-        <select id="unstuckCount" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:0.45rem 0.6rem;outline:none;font-size:0.85rem;cursor:pointer;">
-          <option value="3">3 ideas</option>
-          <option value="5">5 ideas</option>
-        </select>
-        <button class="modal-btn modal-btn-sm" id="unstuckBtn" onclick="fetchUnstuck()">Get Unstuck</button>
-      </div>
-      <div class="ideas-list" id="unstuckList"></div>
-      <div class="status" id="unstuckStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── Scene Modal ──────────────────────────────────────────────────────── -->
-  <div class="overlay" id="sceneOverlay" onclick="closeModal('scene')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">Write a Scene</span>
-        <button class="modal-close" onclick="closeModal('scene')">✕</button>
-      </div>
-      <p class="modal-sub">Draft a scene in your voice with specific parameters</p>
-      <div class="modal-fields">
-        <div class="modal-field">
-          <label class="modal-label">What happens <span>*</span></label>
-          <textarea id="scenePrompt" class="modal-textarea" rows="2" placeholder="e.g. Elena discovers the letter in the drawer"></textarea>
-        </div>
-        <div class="modal-field">
-          <label class="modal-label">Characters (comma-separated)</label>
-          <input type="text" id="sceneCharacters" class="modal-input" placeholder="e.g. Elena, Marcus" />
-        </div>
-        <div class="modal-row">
-          <div class="modal-field">
-            <label class="modal-label">Location</label>
-            <input type="text" id="sceneLocation" class="modal-input" placeholder="e.g. the old library" />
-          </div>
-          <div class="modal-field">
-            <label class="modal-label">Mood</label>
-            <input type="text" id="sceneMood" class="modal-input" placeholder="e.g. tense, melancholic" />
-          </div>
-        </div>
-      </div>
-      <button class="modal-btn" id="sceneBtn" onclick="fetchScene()">Draft Scene</button>
-      <div class="status" id="sceneStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── Dialogue Modal ──────────────────────────────────────────────────── -->
-  <div class="overlay" id="dialogueOverlay" onclick="closeModal('dialogue')">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span class="modal-title">Write Dialogue</span>
-        <button class="modal-close" onclick="closeModal('dialogue')">✕</button>
-      </div>
-      <p class="modal-sub">Write dialogue between characters in your voice</p>
-      <div class="modal-fields">
-        <div class="modal-field">
-          <label class="modal-label">Situation &amp; context <span>*</span></label>
-          <textarea id="dialogueContext" class="modal-textarea" rows="2" placeholder="e.g. Marcus confronts Elena about the letter"></textarea>
-        </div>
-        <div class="modal-field">
-          <label class="modal-label">Characters speaking (comma-separated)</label>
-          <input type="text" id="dialogueCharacters" class="modal-input" placeholder="e.g. Marcus, Elena" />
-        </div>
-      </div>
-      <button class="modal-btn" id="dialogueBtn" onclick="fetchDialogue()">Write Dialogue</button>
-      <div class="status" id="dialogueStatus"></div>
-    </div>
-  </div>
-
-  <!-- ── Demo Modal ──────────────────────────────────────────────────────── -->
-  <div class="overlay" id="demoOverlay" onclick="closeModal('demo')">
-    <div class="modal modal-wide" id="demoModal" onclick="event.stopPropagation()" style="max-width:700px; transition: max-width 0.25s cubic-bezier(0.4,0,0.2,1);">
-      <div class="modal-header">
-        <span class="modal-title">Demo / Tester Mode</span>
-        <button class="modal-close" onclick="closeModal('demo')">✕</button>
-      </div>
-
-      <div class="demo-banner">
-        ⚗ This mode uses classic literature — completely isolated from your personal writing.
-      </div>
-
-      <div class="demo-split">
-        <div class="demo-left">
-          <div>
-            <div class="modal-label" style="margin-bottom:0.5rem;">Select an author to explore their style</div>
-            <div class="author-grid" id="authorGrid">
-              <span class="loading-hint">Loading authors...</span>
-            </div>
-          </div>
-
-          <div class="demo-prompts-section" id="demoPromptsSection" style="display:none;">
-            <div class="demo-prompts-label">Sample prompts for <span id="demoAuthorName"></span></div>
-            <div id="demoPromptsList"></div>
-          </div>
-
-          <div class="status" id="demoStatus"></div>
-        </div>
-
-        <div class="demo-result-panel" id="demoResultPanel">
-          <div class="demo-result-header">
-            <span class="demo-result-title" id="demoResultTitle">Result</span>
-            <div class="demo-result-actions">
-              <button class="demo-result-action" id="demoCopyBtn" onclick="copyDemoResult()" style="display:none">Copy</button>
-              <button class="demo-result-action" onclick="closeDemoResult()">✕</button>
-            </div>
-          </div>
-          <div class="demo-result-body" id="demoResultBody"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Script ────────────────────────────────────────────────────────────── -->
-  <script>
-    let USER_ID = null, USERNAME = null;
-    let currentMode = 'generate';
-    let selectedFiles = [];
-    let generatedText = '';
-
-    // ── Auth ─────────────────────────────────────────────────────────────
-    async function initAuth() {
-      try {
-        const res = await fetch('/auth/me');
-        if (!res.ok) { window.location.replace('/login'); return; }
-        const data = await res.json();
-        USER_ID = String(data.userId);
-        USERNAME = data.username;
-        document.getElementById('sidebarUsername').textContent = USERNAME;
-        document.getElementById('userAvatar').textContent = USERNAME[0].toUpperCase();
-      } catch { window.location.replace('/login'); }
-    }
-
-    async function logout() {
-      await fetch('/auth/logout', { method: 'POST' });
-      window.location.replace('/login');
-    }
-
-    // ── Sidebar ──────────────────────────────────────────────────────────
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('expanded');
-    }
-
-    // ── Mode ─────────────────────────────────────────────────────────────
-    const placeholders = {
-      generate: 'Describe what you want written...',
-      ideas:    'Optional topic or theme (leave blank for general ideas)...',
-      analyze:  'Press send to analyze your uploaded writing...',
-    };
-
-    function setMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('.mode-pill').forEach(p =>
-        p.classList.toggle('active', p.dataset.mode === mode)
-      );
-      const input = document.getElementById('actionInput');
-      input.placeholder = placeholders[mode];
-      input.disabled = mode === 'analyze';
-    }
-
-    // ── Style hint toggle ────────────────────────────────────────────────
-    function toggleOpts() {
-      document.getElementById('optsRow').classList.toggle('open');
-      document.getElementById('optBtn').classList.toggle('active');
-    }
-
-    // ── Doc tabs ─────────────────────────────────────────────────────────
-    function showDocTab(tab, btn) {
-      document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-      const draftArea = document.getElementById('draftArea');
-      const genView   = document.getElementById('generatedDocView');
-      if (tab === 'draft') {
-        draftArea.style.display = 'block';
-        genView.style.display = 'none';
-      } else {
-        draftArea.style.display = 'none';
-        genView.style.display = 'block';
-        // sync content
-        const hint = document.getElementById('genHint');
-        if (generatedText) {
-          genView.textContent = generatedText;
-          document.getElementById('insertBtn').style.display = 'inline-block';
-          document.getElementById('copyBtn').style.display   = 'inline-block';
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceForge</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #111111;
+        --surface: #1a1a1a;
+        --surface2: #222222;
+        --border: #2a2a2a;
+        --accent: #7D1D3F;
+        --accent-hover: #9B2449;
+        --accent-dim: rgba(125, 29, 63, 0.15);
+        --accent-border: rgba(125, 29, 63, 0.4);
+        --text: #e8e8e8;
+        --soft: #aaaaaa;
+        --muted: #888888;
+        --success: #27ae60;
+        --success-bg: rgba(39, 174, 96, 0.08);
+        --success-bdr: rgba(39, 174, 96, 0.25);
+        --error: #c0392b;
+        --error-bg: rgba(192, 57, 43, 0.08);
+        --error-bdr: rgba(192, 57, 43, 0.25);
+        --doc-bg: #f0eeeb;
+        --doc-text: #1a1a1a;
+        --sidebar-w: 220px;
+        --sidebar-w-sm: 52px;
+        --topbar-h: 44px;
+        --radius: 8px;
+        --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+        --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-serif: 'Georgia', 'Times New Roman', serif;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: var(--font-sans);
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+      }
+
+      /* ── Sidebar ──────────────────────────────────────────────────────── */
+      .sidebar {
+        width: var(--sidebar-w-sm);
+        height: 100vh;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+      }
+
+      .sidebar.expanded {
+        width: var(--sidebar-w);
+      }
+
+      .sidebar-header {
+        height: var(--topbar-h);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0 0.75rem;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .toggle-btn {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        color: var(--soft);
+        cursor: pointer;
+        border-radius: var(--radius);
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .toggle-btn:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+
+      .brand-label {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.5px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s;
+      }
+
+      .brand-label span {
+        color: var(--accent);
+      }
+
+      .sidebar.expanded .brand-label {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .sidebar-user {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        min-width: 0;
+      }
+
+      .user-avatar {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-transform: uppercase;
+      }
+
+      .user-info {
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s;
+      }
+
+      .sidebar.expanded .user-info {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .username {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .user-sub {
+        font-size: 0.7rem;
+        color: var(--muted);
+        font-family: var(--font-mono);
+      }
+
+      .sidebar-nav {
+        flex: 1;
+        padding: 0.5rem 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .nav-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0.75rem;
+        background: none;
+        border: none;
+        color: var(--soft);
+        font-family: var(--font-sans);
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-align: left;
+        white-space: nowrap;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .nav-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+
+      .nav-icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+      }
+
+      .nav-label {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s;
+      }
+
+      .sidebar.expanded .nav-label {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .sidebar-footer {
+        border-top: 1px solid var(--border);
+        padding: 0.5rem 0;
+        flex-shrink: 0;
+      }
+
+      .nav-logout {
+        color: var(--muted);
+      }
+
+      .nav-logout:hover {
+        color: var(--error);
+        background: var(--error-bg);
+      }
+
+      /* ── Main ─────────────────────────────────────────────────────────── */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        min-width: 0;
+        position: relative;
+      }
+
+      /* Topbar */
+      .topbar {
+        height: var(--topbar-h);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.25rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .topbar-brand {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.5px;
+      }
+
+      .topbar-brand span {
+        color: var(--accent);
+      }
+
+      .topbar-mode-pills {
+        display: flex;
+        gap: 2px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 2px;
+      }
+
+      .mode-pill {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-family: var(--font-sans);
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 0.3rem 0.65rem;
+        border-radius: 4px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .mode-pill:hover {
+        color: var(--soft);
+      }
+
+      .mode-pill.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .topbar-stat {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      /* ── Document workspace ───────────────────────────────────────────── */
+      .workspace {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        position: relative;
+        background:
+          radial-gradient(ellipse at 20% 50%, rgba(125, 29, 63, 0.04) 0%, transparent 60%),
+          var(--bg);
+      }
+
+      /* Document column */
+      .doc-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto;
+        padding: 2.5rem 1.5rem 1rem;
+        gap: 0;
+      }
+
+      /* The paper itself */
+      .doc-paper {
+        width: 100%;
+        max-width: 680px;
+        min-height: 480px;
+        flex: 1;
+        background: var(--doc-bg);
+        border-radius: 4px;
+        box-shadow:
+          0 2px 4px rgba(0, 0, 0, 0.4),
+          0 8px 24px rgba(0, 0, 0, 0.5),
+          0 24px 48px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .doc-paper-tabs {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        background: #e4e2df;
+        border-bottom: 1px solid #ccc;
+        flex-shrink: 0;
+      }
+
+      .doc-tab-group {
+        display: flex;
+        gap: 2px;
+      }
+
+      .doc-tab {
+        background: none;
+        border: none;
+        font-family: var(--font-sans);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        color: #777;
+        padding: 0.25rem 0.65rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .doc-tab:hover {
+        background: rgba(0, 0, 0, 0.06);
+        color: #333;
+      }
+
+      .doc-tab.active {
+        background: white;
+        color: #222;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+      }
+
+      .doc-paper-actions {
+        display: flex;
+        gap: 0.35rem;
+      }
+
+      .doc-action-btn {
+        background: none;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.68rem;
+        font-family: var(--font-mono);
+        color: #888;
+        padding: 0.2rem 0.5rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .doc-action-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      /* Actual textarea inside the doc */
+      .writing-area {
+        flex: 1;
+        width: 100%;
+        min-height: 400px;
+        background: transparent;
+        border: none;
+        outline: none;
+        resize: none;
+        color: var(--doc-text);
+        font-family: var(--font-serif);
+        font-size: 1rem;
+        line-height: 1.85;
+        padding: 2rem 3rem;
+        caret-color: var(--accent);
+      }
+
+      .writing-area::placeholder {
+        color: #b0aca7;
+        font-style: italic;
+      }
+
+      /* Generated panel (right side) */
+      .gen-panel {
+        width: 0;
+        overflow: hidden;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .gen-panel.open {
+        width: 340px;
+      }
+
+      .gen-panel-header {
+        height: var(--topbar-h);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+
+      .gen-panel-title {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .gen-panel-actions {
+        display: flex;
+        gap: 0.35rem;
+      }
+
+      .mini-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .mini-btn:hover {
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+
+      .gen-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+        font-family: var(--font-sans);
+        font-size: 0.88rem;
+        line-height: 1.75;
+        color: var(--soft);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .empty-hint {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.82rem;
+      }
+
+      /* ── Action bar ───────────────────────────────────────────────────── */
+      .action-bar {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+      }
+
+      /* Style hint row */
+      .opts-row {
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.45rem 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .opts-row.open {
+        display: flex;
+      }
+
+      .opts-row label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .opts-row input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.85rem;
+        padding: 0.35rem 0.75rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .opts-row input:focus {
+        border-color: var(--accent-border);
+      }
+
+      .opts-row input::placeholder {
+        color: #444;
+      }
+
+      /* Input row */
+      .action-input-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        padding: 0.65rem 0.75rem;
+      }
+
+      .action-input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.88rem;
+        padding: 0.5rem 0.85rem;
+        outline: none;
+        resize: none;
+        line-height: 1.4;
+        max-height: 120px;
+        overflow-y: auto;
+        transition: border-color 0.15s;
+      }
+
+      .action-input:focus {
+        border-color: var(--accent-border);
+      }
+
+      .action-input::placeholder {
+        color: #444;
+      }
+
+      .action-icon-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--muted);
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+
+      .action-icon-btn:hover {
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+
+      .action-icon-btn.active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+
+      .action-send-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        background: var(--accent);
+        border: none;
+        border-radius: var(--radius);
+        color: #fff;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      }
+
+      .action-send-btn:hover {
+        background: var(--accent-hover);
+      }
+
+      .action-send-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* Stats strip */
+      .stats-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.3rem 1rem;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .stat {
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        color: var(--soft);
+        white-space: nowrap;
+      }
+
+      .stat-dim {
+        color: var(--muted);
+      }
+
+      .stat-sep {
+        color: var(--border);
+        font-size: 0.8rem;
+      }
+
+      /* Loading spinner */
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: inline-block;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
       }
-    }
 
-    function closeGenPanel() {
-      document.getElementById('genPanel').classList.remove('open');
-    }
+      /* ── Modals ───────────────────────────────────────────────────────── */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 1rem;
+      }
 
-    // ── Action send ──────────────────────────────────────────────────────
-    async function handleSend() {
-      if (currentMode === 'generate') await doGenerate();
-      else if (currentMode === 'ideas') await doIdeasFromBar();
-      else if (currentMode === 'analyze') await doAnalyze();
-    }
+      .overlay.open {
+        display: flex;
+      }
 
-    // Auto-resize textarea
-    document.addEventListener('DOMContentLoaded', () => {
-      const ta = document.getElementById('actionInput');
-      ta.addEventListener('input', () => {
-        ta.style.height = 'auto';
-        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-      });
-      ta.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-      });
-      document.getElementById('draftArea').addEventListener('input', updateWordCount);
-    });
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 480px;
+        max-height: 85vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
 
-    // ── Generate ─────────────────────────────────────────────────────────
-    async function doGenerate() {
-      const prompt = document.getElementById('actionInput').value.trim();
-      if (!prompt) return;
-      const sendBtn = document.getElementById('sendBtn');
-      sendBtn.disabled = true;
-      sendBtn.innerHTML = '<span class="spinner"></span>';
-      setGeneratedContent(null, true);
+      .modal-wide {
+        max-width: 640px;
+      }
 
-      try {
-        const res = await fetch('/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            styleHint: document.getElementById('styleHintInput').value.trim(),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          setGeneratedContent(`Error: ${data.error || 'Generation failed'}`);
-        } else {
-          setGeneratedContent(data.generatedText || '');
-          if (data.paragraphStats) updateStatsStrip(data.paragraphStats);
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+        transition: color 0.15s;
+      }
+
+      .modal-close:hover {
+        color: var(--text);
+      }
+
+      .modal-sub {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: -0.5rem;
+      }
+
+      .modal-btn {
+        width: 100%;
+        background: var(--accent);
+        border: none;
+        border-radius: var(--radius);
+        color: #fff;
+        font-family: var(--font-sans);
+        font-size: 0.9rem;
+        font-weight: 500;
+        padding: 0.7rem;
+        cursor: pointer;
+        transition: background 0.15s;
+        flex-shrink: 0;
+      }
+
+      .modal-btn:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+
+      .modal-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .modal-btn-sm {
+        width: auto;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.82rem;
+      }
+
+      /* Drop zone */
+      .drop-zone {
+        border: 1.5px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 1.75rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        position: relative;
+      }
+
+      .drop-zone:hover,
+      .drop-zone.dragover {
+        border-color: var(--accent-border);
+        background: var(--accent-dim);
+      }
+
+      .drop-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+
+      .drop-icon {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .drop-zone p {
+        font-size: 0.83rem;
+        color: var(--soft);
+      }
+
+      .drop-zone span {
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      .drop-hint {
+        font-family: var(--font-mono);
+        font-size: 0.67rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+      }
+
+      .file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .file-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.82rem;
+        animation: slideIn 0.15s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-3px);
         }
-      } catch {
-        setGeneratedContent('Network error — is the server running?');
-      } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = '↑';
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
-    }
 
-    function setGeneratedContent(text, loading = false) {
-      const area        = document.getElementById('generatedArea');
-      const docView     = document.getElementById('generatedDocView');
-      const copyBtn     = document.getElementById('copyBtn');
-      const insertBtn   = document.getElementById('insertBtn');
-      const sideCopyBtn = document.getElementById('sideCopyBtn');
-      const sideInsBtn  = document.getElementById('sideInsertBtn');
-
-      if (loading) {
-        const loadMsg = '<span style="color:var(--muted);font-style:italic;font-size:.88rem">Generating...</span>';
-        area.innerHTML = loadMsg;
-        [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
-        // Open side panel to show generation in progress
-        document.getElementById('genPanel').classList.add('open');
-        return;
+      .file-icon {
+        font-size: 1.1rem;
+        flex-shrink: 0;
       }
-      if (!text) {
-        area.innerHTML = '<span class="empty-hint">Generated text will appear here</span>';
-        [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
-        return;
+
+      .file-info {
+        flex: 1;
+        overflow: hidden;
       }
-      generatedText = text;
-      area.textContent = text;
-      docView.textContent = text;
-      [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'inline-block');
-      document.getElementById('genTabBtn').style.color = 'var(--accent)';
-      // Reset panel title (may have been set to demo author name)
-      const title = document.querySelector('.gen-panel-title');
-      if (title && !text.startsWith('Error')) title.textContent = 'Generated';
-    }
 
-    async function copyGenerated() {
-      await navigator.clipboard.writeText(generatedText);
-      [document.getElementById('copyBtn'), document.getElementById('sideCopyBtn')].forEach(b => {
-        if (b) { const orig = b.textContent; b.textContent = 'Copied!'; setTimeout(() => b.textContent = orig, 1500); }
-      });
-    }
+      .file-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text);
+        font-weight: 500;
+      }
 
-    function insertGenerated() {
-      const draft = document.getElementById('draftArea');
-      const sep = draft.value.length > 0 ? '\n\n' : '';
-      draft.value += sep + generatedText;
-      updateWordCount();
-      // Switch back to draft tab
-      document.querySelector('.doc-tab').click();
-      draft.focus();
-      draft.scrollTop = draft.scrollHeight;
-    }
+      .file-size {
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-family: var(--font-mono);
+      }
 
-    // ── Ideas from action bar ────────────────────────────────────────────
-    async function doIdeasFromBar() {
-      const topic = document.getElementById('actionInput').value.trim();
-      openModal('ideas');
-      document.getElementById('ideasTopicInput').value = topic;
-      await fetchIdeas();
-    }
+      .remove-btn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.9rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        transition: color 0.15s;
+      }
 
-    // ── Analyze ──────────────────────────────────────────────────────────
-    async function doAnalyze() {
-      openModal('style');
-      await fetchStyleProfile();
-    }
+      .remove-btn:hover {
+        color: var(--error);
+      }
 
-    // ── Word count ───────────────────────────────────────────────────────
-    function updateWordCount() {
-      const text = document.getElementById('draftArea').value.trim();
-      const count = text ? text.split(/\s+/).length : 0;
-      document.getElementById('draftWordCount').textContent = `${count} words`;
-      document.getElementById('statDraftWords').textContent = `${count} words in draft`;
-    }
+      .progress-wrap {
+        height: 2px;
+        background: var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+        display: none;
+      }
 
-    // ── Stats strip ──────────────────────────────────────────────────────
-    function updateStatsStrip(stats) {
-      if (stats.sentenceLength?.avg !== undefined)
-        document.getElementById('statAvgSentence').textContent = `avg sentence: ${stats.sentenceLength.avg} words`;
-      if (stats.dialogueRatio !== undefined)
-        document.getElementById('statDialogue').textContent = `dialogue: ${Math.round(stats.dialogueRatio * 100)}%`;
-      if (stats.punctuationHabits?.emDash !== undefined)
-        document.getElementById('statEmDash').textContent = `em-dash: ${stats.punctuationHabits.emDash}`;
-    }
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+        width: 0%;
+        border-radius: 999px;
+        transition: width 0.3s ease;
+      }
 
-    // ── Modals ───────────────────────────────────────────────────────────
-    function openModal(name) {
-      document.getElementById(`${name}Overlay`).classList.add('open');
-      if (name === 'works') fetchWorks();
-      if (name === 'style') fetchStyleProfile();
-      if (name === 'demo')  fetchDemoAuthors();
-    }
-    function closeModal(name) {
-      document.getElementById(`${name}Overlay`).classList.remove('open');
-      if (name === 'demo') closeDemoResult();
-    }
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') ['upload','works','style','ideas','unstuck','scene','dialogue','demo'].forEach(closeModal);
-    });
+      .status {
+        padding: 0.6rem 0.85rem;
+        border-radius: var(--radius);
+        font-size: 0.8rem;
+        display: none;
+        font-family: var(--font-mono);
+      }
 
-    // ── Upload ───────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-      const dropZone  = document.getElementById('dropZone');
-      const fileInput = document.getElementById('fileInput');
-      dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-      dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles([...e.dataTransfer.files]); });
-      fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
-      document.getElementById('uploadBtn').addEventListener('click', doUpload);
-    });
+      .status.success {
+        display: block;
+        background: var(--success-bg);
+        border: 1px solid var(--success-bdr);
+        color: var(--success);
+      }
 
-    function addFiles(newFiles) {
-      newFiles.forEach(f => { if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f); });
-      renderFileList();
-    }
+      .status.error {
+        display: block;
+        background: var(--error-bg);
+        border: 1px solid var(--error-bdr);
+        color: var(--error);
+      }
 
-    function renderFileList() {
-      const list = document.getElementById('fileList');
-      list.innerHTML = '';
-      selectedFiles.forEach((file, i) => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `<span class="file-icon">${getFileIcon(file.name)}</span><div class="file-info"><div class="file-name">${file.name}</div><div class="file-size">${formatSize(file.size)}</div></div><button class="remove-btn" data-i="${i}" title="Remove">✕</button>`;
-        list.appendChild(item);
-      });
-      list.querySelectorAll('.remove-btn').forEach(btn =>
-        btn.addEventListener('click', () => { selectedFiles.splice(Number(btn.dataset.i), 1); renderFileList(); })
-      );
-      document.getElementById('uploadBtn').disabled = selectedFiles.length === 0;
-      document.getElementById('uploadStatus').className = 'status';
-    }
+      .works-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        min-height: 60px;
+      }
 
-    async function doUpload() {
-      if (!selectedFiles.length) return;
-      const uploadBtn = document.getElementById('uploadBtn');
-      const uploadBar = document.getElementById('uploadBar');
-      const uploadProgress = document.getElementById('uploadProgress');
-      const uploadStatus = document.getElementById('uploadStatus');
-      uploadBtn.disabled = true;
-      uploadStatus.className = 'status';
-      uploadProgress.style.display = 'block';
-      uploadBar.style.width = '0%';
-      const results = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const formData = new FormData();
-        formData.append('file', selectedFiles[i]);
+      .work-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.6rem 0.85rem;
+      }
+
+      .work-name {
+        flex: 1;
+        font-size: 0.85rem;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .loading-hint {
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-style: italic;
+        padding: 0.5rem 0;
+      }
+
+      .style-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .style-section-label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        margin-bottom: 0.35rem;
+      }
+
+      .style-section-body {
+        font-size: 0.87rem;
+        color: var(--soft);
+        line-height: 1.6;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+
+      .stat-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+      }
+
+      .stat-card-label {
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        margin-bottom: 0.3rem;
+      }
+
+      .stat-card-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .stat-card-sub {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.2rem;
+      }
+
+      .ideas-controls {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .ideas-controls input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.88rem;
+        padding: 0.45rem 0.75rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .ideas-controls input:focus {
+        border-color: var(--accent-border);
+      }
+
+      .ideas-controls input::placeholder {
+        color: #444;
+      }
+
+      .ideas-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .idea-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.9rem 1rem;
+        animation: slideIn 0.2s ease;
+      }
+
+      .idea-text {
+        font-size: 0.9rem;
+        color: var(--text);
+        font-weight: 500;
+        margin-bottom: 0.4rem;
+      }
+
+      .idea-hook {
+        font-size: 0.82rem;
+        color: var(--soft);
+        margin-bottom: 0.2rem;
+      }
+
+      .idea-fit {
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .suggestion-card {
+        display: flex;
+        gap: 0.75rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.9rem 1rem;
+        animation: slideIn 0.2s ease;
+      }
+
+      .suggestion-num {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--accent);
+        font-weight: 700;
+        flex-shrink: 0;
+        width: 1.2rem;
+        margin-top: 0.15rem;
+      }
+
+      .suggestion-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      .suggestion-text {
+        font-size: 0.9rem;
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      .suggestion-root {
+        font-size: 0.75rem;
+        color: var(--accent);
+        font-family: var(--font-mono);
+      }
+
+      .suggestion-fit {
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .modal-label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .modal-label span {
+        color: var(--accent);
+      }
+
+      .modal-input,
+      .modal-textarea {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.88rem;
+        padding: 0.45rem 0.75rem;
+        outline: none;
+        width: 100%;
+        transition: border-color 0.15s;
+      }
+
+      .modal-input::placeholder,
+      .modal-textarea::placeholder {
+        color: #444;
+      }
+
+      .modal-input:focus,
+      .modal-textarea:focus {
+        border-color: var(--accent-border);
+      }
+
+      .modal-textarea {
+        resize: none;
+        line-height: 1.4;
+        padding: 0.5rem 0.75rem;
+      }
+
+      .modal-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+      }
+
+      .modal-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      /* ── Demo Mode ───────────────────────────────────────────────────── */
+      .demo-banner {
+        background: var(--accent-dim);
+        border: 1px solid var(--accent-border);
+        border-radius: var(--radius);
+        padding: 0.55rem 0.85rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .author-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+        gap: 0.6rem;
+      }
+
+      .author-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.85rem;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+
+      .author-card:hover {
+        border-color: var(--accent-border);
+        background: var(--accent-dim);
+      }
+
+      .author-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+
+      .author-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.15rem;
+      }
+
+      .author-era {
+        font-family: var(--font-mono);
+        font-size: 0.63rem;
+        color: var(--muted);
+        margin-bottom: 0.4rem;
+      }
+
+      .author-style {
+        font-size: 0.75rem;
+        color: var(--soft);
+        line-height: 1.45;
+      }
+
+      .author-badge {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        margin-top: 0.4rem;
+        color: var(--success);
+      }
+
+      .author-badge.not-ready {
+        color: var(--muted);
+      }
+
+      .demo-prompts-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .demo-prompts-label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      .demo-prompt-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.6rem 0.85rem;
+        transition: border-color 0.15s;
+      }
+
+      .demo-prompt-item:hover {
+        border-color: var(--accent-border);
+      }
+
+      .demo-prompt-text {
+        flex: 1;
+        font-size: 0.84rem;
+        color: var(--text);
+        line-height: 1.4;
+      }
+
+      .demo-try-btn {
+        background: none;
+        border: 1px solid var(--accent-border);
+        border-radius: 4px;
+        color: var(--accent);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        padding: 0.25rem 0.55rem;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+      }
+
+      .demo-try-btn:hover {
+        background: var(--accent-dim);
+      }
+
+      .demo-try-btn.active {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+      }
+
+      /* ── Demo split layout ───────────────────────────────────────────── */
+      .demo-split {
+        display: flex;
+        gap: 0;
+        min-height: 0;
+      }
+
+      .demo-left {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .demo-result-panel {
+        width: 0;
+        overflow: hidden;
+        transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
+        opacity: 0;
+        flex-shrink: 0;
+      }
+
+      .demo-result-panel.open {
+        width: 340px;
+        opacity: 1;
+        border-left: 1px solid var(--border);
+        margin-left: 1rem;
+        padding-left: 1rem;
+      }
+
+      .demo-result-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.6rem;
+      }
+
+      .demo-result-title {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      .demo-result-actions {
+        display: flex;
+        gap: 0.35rem;
+      }
+
+      .demo-result-action {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--soft);
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        padding: 0.2rem 0.45rem;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+      }
+
+      .demo-result-action:hover {
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+
+      .demo-result-body {
+        font-size: 0.84rem;
+        line-height: 1.65;
+        color: var(--text);
+        white-space: pre-wrap;
+        overflow-y: auto;
+        max-height: 420px;
+      }
+
+      .demo-result-body .loading-hint {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.84rem;
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 99px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--muted);
+      }
+
+      @media (max-width: 720px) {
+        .sidebar {
+          position: fixed;
+          z-index: 50;
+          height: 100vh;
+        }
+
+        .gen-panel.open {
+          width: 100%;
+          position: fixed;
+          inset: 0;
+          z-index: 40;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+        <span class="brand-label">Voice<span>Forge</span></span>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <div class="username" id="sidebarUsername">Loading...</div>
+          <div class="user-sub">writer</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item" onclick="openModal('upload')" title="Upload Files">
+          <span class="nav-icon">↑</span>
+          <span class="nav-label">Upload Files</span>
+        </button>
+        <button class="nav-item" onclick="openModal('works')" title="My Works">
+          <span class="nav-icon">≡</span>
+          <span class="nav-label">My Works</span>
+        </button>
+        <button class="nav-item" onclick="openModal('style')" title="Style Profile">
+          <span class="nav-icon">◈</span>
+          <span class="nav-label">Style Profile</span>
+        </button>
+        <button class="nav-item" onclick="openModal('ideas')" title="Writing Ideas">
+          <span class="nav-icon">✦</span>
+          <span class="nav-label">Writing Ideas</span>
+        </button>
+        <button class="nav-item" onclick="continueFromDraft()" title="Continue Writing">
+          <span class="nav-icon">→</span>
+          <span class="nav-label">Continue Writing</span>
+        </button>
+        <button class="nav-item" onclick="openModal('unstuck')" title="I'm Stuck">
+          <span class="nav-icon">⊘</span>
+          <span class="nav-label">I'm Stuck</span>
+        </button>
+        <button class="nav-item" onclick="openModal('scene')" title="Write a Scene">
+          <span class="nav-icon">◻</span>
+          <span class="nav-label">Write a Scene</span>
+        </button>
+        <button class="nav-item" onclick="openModal('dialogue')" title="Write Dialogue">
+          <span class="nav-icon">❝</span>
+          <span class="nav-label">Write Dialogue</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" onclick="openModal('demo')" title="Demo Mode" style="color:var(--accent)">
+          <span class="nav-icon">⚗</span>
+          <span class="nav-label">Demo / Tester</span>
+        </button>
+        <button class="nav-item nav-logout" onclick="logout()" title="Sign Out">
+          <span class="nav-icon">→</span>
+          <span class="nav-label">Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Main ─────────────────────────────────────────────────────────────── -->
+    <div class="main" id="main">
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="topbar-brand">Voice<span>Forge</span></span>
+          <div class="topbar-mode-pills">
+            <button class="mode-pill active" data-mode="generate" onclick="setMode('generate')">Generate</button>
+            <button class="mode-pill" data-mode="ideas" onclick="setMode('ideas')">Ideas</button>
+            <button class="mode-pill" data-mode="analyze" onclick="setMode('analyze')">Analyze</button>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span class="topbar-stat" id="draftWordCount">0 words</span>
+        </div>
+      </header>
+
+      <!-- Workspace: document + generated panel -->
+      <div class="workspace">
+
+        <!-- Document column -->
+        <div class="doc-column" id="docColumn">
+          <div class="doc-paper">
+            <div class="doc-paper-tabs">
+              <div class="doc-tab-group">
+                <button class="doc-tab active" onclick="showDocTab('draft', this)">Draft</button>
+                <button class="doc-tab" onclick="showDocTab('generated', this)" id="genTabBtn">Generated</button>
+              </div>
+              <div class="doc-paper-actions">
+                <button class="doc-action-btn" id="continueBtn" onclick="continueFromDraft()">Continue →</button>
+                <button class="doc-action-btn" id="insertBtn" style="display:none" onclick="insertGenerated()">←
+                  Insert</button>
+                <button class="doc-action-btn" id="copyBtn" style="display:none" onclick="copyGenerated()">Copy</button>
+              </div>
+            </div>
+
+            <!-- Draft view -->
+            <textarea class="writing-area" id="draftArea"
+              placeholder="Start writing here. This space is yours."></textarea>
+
+            <!-- Generated view (hidden initially) -->
+            <div class="writing-area" id="generatedDocView" style="display:none; overflow-y:auto; cursor:default;">
+              <span class="empty-hint" id="genHint">Generated text will appear here</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side generated panel (optional) -->
+        <div class="gen-panel" id="genPanel">
+          <div class="gen-panel-header">
+            <span class="gen-panel-title">Generated</span>
+            <div class="gen-panel-actions">
+              <button class="mini-btn" id="sideInsertBtn" style="display:none" onclick="insertGenerated()">Insert
+                →</button>
+              <button class="mini-btn" id="sideCopyBtn" style="display:none" onclick="copyGenerated()">Copy</button>
+              <button class="mini-btn" onclick="closeGenPanel()">✕</button>
+            </div>
+          </div>
+          <div class="gen-panel-body" id="generatedArea">
+            <span class="empty-hint">Generated text will appear here</span>
+          </div>
+        </div>
+
+      </div><!-- .workspace -->
+
+      <!-- Style hint row -->
+      <div class="action-bar">
+        <div class="opts-row" id="optsRow">
+          <label>Style hint</label>
+          <input type="text" id="styleHintInput" placeholder="e.g. more melancholy, shorter sentences..." />
+        </div>
+
+        <!-- Input row -->
+        <div class="action-input-row">
+          <textarea class="action-input" id="actionInput" rows="1"
+            placeholder="Describe what you want written..."></textarea>
+          <button class="action-icon-btn" id="optBtn" onclick="toggleOpts()" title="Style hint">⚙</button>
+          <button class="action-send-btn" id="sendBtn" onclick="handleSend()">↑</button>
+        </div>
+
+        <!-- Stats strip -->
+        <div class="stats-strip">
+          <span class="stat" id="statDraftWords">0 words in draft</span>
+          <span class="stat-sep">·</span>
+          <span class="stat stat-dim" id="statAvgSentence">avg sentence: —</span>
+          <span class="stat-sep">·</span>
+          <span class="stat stat-dim" id="statDialogue">dialogue: —</span>
+          <span class="stat-sep">·</span>
+          <span class="stat stat-dim" id="statEmDash">em-dash: —</span>
+        </div>
+      </div>
+
+    </div><!-- .main -->
+
+    <!-- ── Upload Modal ──────────────────────────────────────────────────────── -->
+    <div class="overlay" id="uploadOverlay" onclick="closeModal('upload')">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Upload Writing Samples</span>
+          <button class="modal-close" onclick="closeModal('upload')">✕</button>
+        </div>
+        <p class="modal-sub">Supported: .txt · .pdf · .md · .docx</p>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept=".txt,.pdf,.md,.docx" />
+          <div class="drop-icon">⬆</div>
+          <p><span>Click to browse</span> or drag files here</p>
+          <p class="drop-hint">The more you upload, the better the voice match</p>
+        </div>
+        <div class="file-list" id="fileList"></div>
+        <div class="progress-wrap" id="uploadProgress">
+          <div class="progress-bar" id="uploadBar"></div>
+        </div>
+        <button class="modal-btn" id="uploadBtn" disabled>Upload Files</button>
+        <div class="status" id="uploadStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── My Works Modal ───────────────────────────────────────────────────── -->
+    <div class="overlay" id="worksOverlay" onclick="closeModal('works')">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">My Uploaded Works</span>
+          <button class="modal-close" onclick="closeModal('works')">✕</button>
+        </div>
+        <div class="works-list" id="worksList"><span class="loading-hint">Loading...</span></div>
+        <div class="status" id="worksStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── Style Profile Modal ──────────────────────────────────────────────── -->
+    <div class="overlay" id="styleOverlay" onclick="closeModal('style')">
+      <div class="modal modal-wide" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Your Style Profile</span>
+          <button class="modal-close" onclick="closeModal('style')">✕</button>
+        </div>
+        <div class="style-content" id="styleContent">
+          <span class="loading-hint">Analyzing your writing...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Ideas Modal ──────────────────────────────────────────────────────── -->
+    <div class="overlay" id="ideasOverlay" onclick="closeModal('ideas')">
+      <div class="modal modal-wide" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Writing Ideas</span>
+          <button class="modal-close" onclick="closeModal('ideas')">✕</button>
+        </div>
+        <div class="ideas-controls">
+          <input type="text" id="ideasTopicInput" placeholder="Optional topic or theme..." />
+          <button class="modal-btn modal-btn-sm" onclick="fetchIdeas()">Generate Ideas</button>
+        </div>
+        <div class="ideas-list" id="ideasList"></div>
+        <div class="status" id="ideasStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── Unstuck Modal ───────────────────────────────────────────────────── -->
+    <div class="overlay" id="unstuckOverlay" onclick="closeModal('unstuck')">
+      <div class="modal modal-wide" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">I'm Stuck</span>
+          <button class="modal-close" onclick="closeModal('unstuck')">✕</button>
+        </div>
+        <p class="modal-sub">Story-grounded suggestions for what could happen next</p>
+        <div class="ideas-controls">
+          <input type="text" id="unstuckContext" class="modal-input"
+            placeholder="Optional: describe where you're stuck..." />
+          <select id="unstuckCount"
+            style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:0.45rem 0.6rem;outline:none;font-size:0.85rem;cursor:pointer;">
+            <option value="3">3 ideas</option>
+            <option value="5">5 ideas</option>
+          </select>
+          <button class="modal-btn modal-btn-sm" id="unstuckBtn" onclick="fetchUnstuck()">Get Unstuck</button>
+        </div>
+        <div class="ideas-list" id="unstuckList"></div>
+        <div class="status" id="unstuckStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── Scene Modal ──────────────────────────────────────────────────────── -->
+    <div class="overlay" id="sceneOverlay" onclick="closeModal('scene')">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Write a Scene</span>
+          <button class="modal-close" onclick="closeModal('scene')">✕</button>
+        </div>
+        <p class="modal-sub">Draft a scene in your voice with specific parameters</p>
+        <div class="modal-fields">
+          <div class="modal-field">
+            <label class="modal-label">What happens <span>*</span></label>
+            <textarea id="scenePrompt" class="modal-textarea" rows="2"
+              placeholder="e.g. Elena discovers the letter in the drawer"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">Characters (comma-separated)</label>
+            <input type="text" id="sceneCharacters" class="modal-input" placeholder="e.g. Elena, Marcus" />
+          </div>
+          <div class="modal-row">
+            <div class="modal-field">
+              <label class="modal-label">Location</label>
+              <input type="text" id="sceneLocation" class="modal-input" placeholder="e.g. the old library" />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">Mood</label>
+              <input type="text" id="sceneMood" class="modal-input" placeholder="e.g. tense, melancholic" />
+            </div>
+          </div>
+        </div>
+        <button class="modal-btn" id="sceneBtn" onclick="fetchScene()">Draft Scene</button>
+        <div class="status" id="sceneStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── Dialogue Modal ──────────────────────────────────────────────────── -->
+    <div class="overlay" id="dialogueOverlay" onclick="closeModal('dialogue')">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Write Dialogue</span>
+          <button class="modal-close" onclick="closeModal('dialogue')">✕</button>
+        </div>
+        <p class="modal-sub">Write dialogue between characters in your voice</p>
+        <div class="modal-fields">
+          <div class="modal-field">
+            <label class="modal-label">Situation &amp; context <span>*</span></label>
+            <textarea id="dialogueContext" class="modal-textarea" rows="2"
+              placeholder="e.g. Marcus confronts Elena about the letter"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">Characters speaking (comma-separated)</label>
+            <input type="text" id="dialogueCharacters" class="modal-input" placeholder="e.g. Marcus, Elena" />
+          </div>
+        </div>
+        <button class="modal-btn" id="dialogueBtn" onclick="fetchDialogue()">Write Dialogue</button>
+        <div class="status" id="dialogueStatus"></div>
+      </div>
+    </div>
+
+    <!-- ── Demo Modal ──────────────────────────────────────────────────────── -->
+    <div class="overlay" id="demoOverlay" onclick="closeModal('demo')">
+      <div class="modal modal-wide" id="demoModal" onclick="event.stopPropagation()"
+        style="max-width:700px; transition: max-width 0.25s cubic-bezier(0.4,0,0.2,1);">
+        <div class="modal-header">
+          <span class="modal-title">Demo / Tester Mode</span>
+          <button class="modal-close" onclick="closeModal('demo')">✕</button>
+        </div>
+
+        <div class="demo-banner">
+          ⚗ This mode uses classic literature — completely isolated from your personal writing.
+        </div>
+
+        <div class="demo-split">
+          <div class="demo-left">
+            <div>
+              <div class="modal-label" style="margin-bottom:0.5rem;">Select an author to explore their style</div>
+              <div class="author-grid" id="authorGrid">
+                <span class="loading-hint">Loading authors...</span>
+              </div>
+            </div>
+
+            <div class="demo-prompts-section" id="demoPromptsSection" style="display:none;">
+              <div class="demo-prompts-label">Sample prompts for <span id="demoAuthorName"></span></div>
+              <div id="demoPromptsList"></div>
+            </div>
+
+            <div class="status" id="demoStatus"></div>
+          </div>
+
+          <div class="demo-result-panel" id="demoResultPanel">
+            <div class="demo-result-header">
+              <span class="demo-result-title" id="demoResultTitle">Result</span>
+              <div class="demo-result-actions">
+                <button class="demo-result-action" id="demoCopyBtn" onclick="copyDemoResult()"
+                  style="display:none">Copy</button>
+                <button class="demo-result-action" onclick="closeDemoResult()">✕</button>
+              </div>
+            </div>
+            <div class="demo-result-body" id="demoResultBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Script ────────────────────────────────────────────────────────────── -->
+    <script>
+      let USER_ID = null, USERNAME = null;
+      let currentMode = 'generate';
+      let selectedFiles = [];
+      let generatedText = '';
+
+      // ── Auth ─────────────────────────────────────────────────────────────
+      async function initAuth() {
         try {
-          const res  = await fetch('/upload', { method: 'POST', body: formData });
+          const res = await fetch('/auth/me');
+          if (!res.ok) { window.location.replace('/login'); return; }
           const data = await res.json();
-          results.push({ name: selectedFiles[i].name, ok: res.ok, msg: data.message || data.error });
-        } catch { results.push({ name: selectedFiles[i].name, ok: false, msg: 'Network error' }); }
-        uploadBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
+          USER_ID = String(data.userId);
+          USERNAME = data.username;
+          document.getElementById('sidebarUsername').textContent = USERNAME;
+          document.getElementById('userAvatar').textContent = USERNAME[0].toUpperCase();
+        } catch { window.location.replace('/login'); }
       }
-      const failed = results.filter(r => !r.ok);
-      if (!failed.length) {
-        showStatus(uploadStatus, 'success', `✓ ${results.length} file(s) uploaded and indexed`);
-        selectedFiles = []; renderFileList();
-      } else {
-        showStatus(uploadStatus, 'error', `✗ Failed: ${failed.map(f => f.name).join(', ')}`);
-        uploadBtn.disabled = false;
-      }
-      setTimeout(() => { uploadProgress.style.display = 'none'; uploadBar.style.width = '0%'; }, 1200);
-    }
 
-    // ── My Works ─────────────────────────────────────────────────────────
-    async function fetchWorks() {
-      const list = document.getElementById('worksList');
-      const status = document.getElementById('worksStatus');
-      list.innerHTML = '<span class="loading-hint">Loading...</span>';
-      status.className = 'status';
-      try {
-        const res = await fetch('/sources');
-        const data = await res.json();
-        if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to load works'); return; }
-        const sources = data.sources || [];
-        if (!sources.length) { list.innerHTML = '<span class="loading-hint">No works uploaded yet.</span>'; return; }
+      async function logout() {
+        await fetch('/auth/logout', { method: 'POST' });
+        window.location.replace('/login');
+      }
+
+      // ── Sidebar ──────────────────────────────────────────────────────────
+      function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('expanded');
+      }
+
+      // ── Mode ─────────────────────────────────────────────────────────────
+      const placeholders = {
+        generate: 'Describe what you want written...',
+        ideas: 'Optional topic or theme (leave blank for general ideas)...',
+        analyze: 'Press send to analyze your uploaded writing...',
+      };
+
+      function setMode(mode) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-pill').forEach(p =>
+          p.classList.toggle('active', p.dataset.mode === mode)
+        );
+        const input = document.getElementById('actionInput');
+        input.placeholder = placeholders[mode];
+        input.disabled = mode === 'analyze';
+      }
+
+      // ── Style hint toggle ────────────────────────────────────────────────
+      function toggleOpts() {
+        document.getElementById('optsRow').classList.toggle('open');
+        document.getElementById('optBtn').classList.toggle('active');
+      }
+
+      // ── Doc tabs ─────────────────────────────────────────────────────────
+      function showDocTab(tab, btn) {
+        document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        const draftArea = document.getElementById('draftArea');
+        const genView = document.getElementById('generatedDocView');
+        if (tab === 'draft') {
+          draftArea.style.display = 'block';
+          genView.style.display = 'none';
+        } else {
+          draftArea.style.display = 'none';
+          genView.style.display = 'block';
+          // sync content
+          const hint = document.getElementById('genHint');
+          if (generatedText) {
+            genView.textContent = generatedText;
+            document.getElementById('insertBtn').style.display = 'inline-block';
+            document.getElementById('copyBtn').style.display = 'inline-block';
+          }
+        }
+      }
+
+      function closeGenPanel() {
+        document.getElementById('genPanel').classList.remove('open');
+      }
+
+      // ── Action send ──────────────────────────────────────────────────────
+      async function handleSend() {
+        if (currentMode === 'generate') await doGenerate();
+        else if (currentMode === 'ideas') await doIdeasFromBar();
+        else if (currentMode === 'analyze') await doAnalyze();
+      }
+
+      // Auto-resize textarea
+      document.addEventListener('DOMContentLoaded', () => {
+        const ta = document.getElementById('actionInput');
+        ta.addEventListener('input', () => {
+          ta.style.height = 'auto';
+          ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+        });
+        ta.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+        });
+        document.getElementById('draftArea').addEventListener('input', updateWordCount);
+      });
+
+      // ── Generate ─────────────────────────────────────────────────────────
+      async function doGenerate() {
+        const prompt = document.getElementById('actionInput').value.trim();
+        if (!prompt) return;
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="spinner"></span>';
+        setGeneratedContent(null, true);
+
+        try {
+          const res = await fetch('/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt,
+              styleHint: document.getElementById('styleHintInput').value.trim(),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) {
+            setGeneratedContent(`Error: ${data.error || 'Generation failed'}`);
+          } else {
+            setGeneratedContent(data.generatedText || '');
+            if (data.paragraphStats) updateStatsStrip(data.paragraphStats);
+          }
+        } catch {
+          setGeneratedContent('Network error — is the server running?');
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = '↑';
+        }
+      }
+
+      function setGeneratedContent(text, loading = false) {
+        const area = document.getElementById('generatedArea');
+        const docView = document.getElementById('generatedDocView');
+        const copyBtn = document.getElementById('copyBtn');
+        const insertBtn = document.getElementById('insertBtn');
+        const sideCopyBtn = document.getElementById('sideCopyBtn');
+        const sideInsBtn = document.getElementById('sideInsertBtn');
+
+        if (loading) {
+          const loadMsg = '<span style="color:var(--muted);font-style:italic;font-size:.88rem">Generating...</span>';
+          area.innerHTML = loadMsg;
+          [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
+          // Open side panel to show generation in progress
+          document.getElementById('genPanel').classList.add('open');
+          return;
+        }
+        if (!text) {
+          area.innerHTML = '<span class="empty-hint">Generated text will appear here</span>';
+          [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
+          return;
+        }
+        generatedText = text;
+        area.textContent = text;
+        docView.textContent = text;
+        [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'inline-block');
+        document.getElementById('genTabBtn').style.color = 'var(--accent)';
+        // Reset panel title (may have been set to demo author name)
+        const title = document.querySelector('.gen-panel-title');
+        if (title && !text.startsWith('Error')) title.textContent = 'Generated';
+      }
+
+      async function copyGenerated() {
+        await navigator.clipboard.writeText(generatedText);
+        [document.getElementById('copyBtn'), document.getElementById('sideCopyBtn')].forEach(b => {
+          if (b) { const orig = b.textContent; b.textContent = 'Copied!'; setTimeout(() => b.textContent = orig, 1500); }
+        });
+      }
+
+      function insertGenerated() {
+        const draft = document.getElementById('draftArea');
+        const sep = draft.value.length > 0 ? '\n\n' : '';
+        draft.value += sep + generatedText;
+        updateWordCount();
+        // Switch back to draft tab
+        document.querySelector('.doc-tab').click();
+        draft.focus();
+        draft.scrollTop = draft.scrollHeight;
+      }
+
+      // ── Ideas from action bar ────────────────────────────────────────────
+      async function doIdeasFromBar() {
+        const topic = document.getElementById('actionInput').value.trim();
+        openModal('ideas');
+        document.getElementById('ideasTopicInput').value = topic;
+        await fetchIdeas();
+      }
+
+      // ── Analyze ──────────────────────────────────────────────────────────
+      async function doAnalyze() {
+        openModal('style');
+        await fetchStyleProfile();
+      }
+
+      // ── Word count ───────────────────────────────────────────────────────
+      function updateWordCount() {
+        const text = document.getElementById('draftArea').value.trim();
+        const count = text ? text.split(/\s+/).length : 0;
+        document.getElementById('draftWordCount').textContent = `${count} words`;
+        document.getElementById('statDraftWords').textContent = `${count} words in draft`;
+      }
+
+      // ── Stats strip ──────────────────────────────────────────────────────
+      function updateStatsStrip(stats) {
+        if (stats.sentenceLength?.avg !== undefined)
+          document.getElementById('statAvgSentence').textContent = `avg sentence: ${stats.sentenceLength.avg} words`;
+        if (stats.dialogueRatio !== undefined)
+          document.getElementById('statDialogue').textContent = `dialogue: ${Math.round(stats.dialogueRatio * 100)}%`;
+        if (stats.punctuationHabits?.emDash !== undefined)
+          document.getElementById('statEmDash').textContent = `em-dash: ${stats.punctuationHabits.emDash}`;
+      }
+
+      // ── Modals ───────────────────────────────────────────────────────────
+      function openModal(name) {
+        document.getElementById(`${name}Overlay`).classList.add('open');
+        if (name === 'works') fetchWorks();
+        if (name === 'style') fetchStyleProfile();
+        if (name === 'demo') fetchDemoAuthors();
+      }
+      function closeModal(name) {
+        document.getElementById(`${name}Overlay`).classList.remove('open');
+        if (name === 'demo') closeDemoResult();
+      }
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') ['upload', 'works', 'style', 'ideas', 'unstuck', 'scene', 'dialogue', 'demo'].forEach(closeModal);
+      });
+
+      // ── Upload ───────────────────────────────────────────────────────────
+      document.addEventListener('DOMContentLoaded', () => {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles([...e.dataTransfer.files]); });
+        fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+        document.getElementById('uploadBtn').addEventListener('click', doUpload);
+      });
+
+      function addFiles(newFiles) {
+        newFiles.forEach(f => { if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f); });
+        renderFileList();
+      }
+
+      function renderFileList() {
+        const list = document.getElementById('fileList');
         list.innerHTML = '';
-        sources.forEach(src => {
+        selectedFiles.forEach((file, i) => {
           const item = document.createElement('div');
-          item.className = 'work-item';
-          item.innerHTML = `<span class="file-icon">${getFileIcon(src)}</span><span class="work-name">${src}</span><button class="remove-btn" title="Delete" onclick="deleteWork('${src}', this)">✕</button>`;
+          item.className = 'file-item';
+          item.innerHTML = `<span class="file-icon">${getFileIcon(file.name)}</span><div class="file-info"><div class="file-name">${file.name}</div><div class="file-size">${formatSize(file.size)}</div></div><button class="remove-btn" data-i="${i}" title="Remove">✕</button>`;
           list.appendChild(item);
         });
-      } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
-    }
+        list.querySelectorAll('.remove-btn').forEach(btn =>
+          btn.addEventListener('click', () => { selectedFiles.splice(Number(btn.dataset.i), 1); renderFileList(); })
+        );
+        document.getElementById('uploadBtn').disabled = selectedFiles.length === 0;
+        document.getElementById('uploadStatus').className = 'status';
+      }
 
-    async function deleteWork(filename, btn) {
-      btn.disabled = true;
-      try {
-        const res = await fetch(`/sources/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-        if (res.ok) btn.closest('.work-item').remove();
-        else btn.disabled = false;
-      } catch { btn.disabled = false; }
-    }
+      async function doUpload() {
+        if (!selectedFiles.length) return;
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadBar = document.getElementById('uploadBar');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadStatus = document.getElementById('uploadStatus');
+        uploadBtn.disabled = true;
+        uploadStatus.className = 'status';
+        uploadProgress.style.display = 'block';
+        uploadBar.style.width = '0%';
+        const results = [];
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const formData = new FormData();
+          formData.append('file', selectedFiles[i]);
+          try {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            results.push({ name: selectedFiles[i].name, ok: res.ok, msg: data.message || data.error });
+          } catch { results.push({ name: selectedFiles[i].name, ok: false, msg: 'Network error' }); }
+          uploadBar.style.width = `${Math.round(((i + 1) / selectedFiles.length) * 100)}%`;
+        }
+        const failed = results.filter(r => !r.ok);
+        if (!failed.length) {
+          showStatus(uploadStatus, 'success', `✓ ${results.length} file(s) uploaded and indexed`);
+          selectedFiles = []; renderFileList();
+        } else {
+          showStatus(uploadStatus, 'error', `✗ Failed: ${failed.map(f => f.name).join(', ')}`);
+          uploadBtn.disabled = false;
+        }
+        setTimeout(() => { uploadProgress.style.display = 'none'; uploadBar.style.width = '0%'; }, 1200);
+      }
 
-    // ── Style Profile ─────────────────────────────────────────────────────
-    async function fetchStyleProfile() {
-      const content = document.getElementById('styleContent');
-      content.innerHTML = '<span class="loading-hint">Analyzing your writing...</span>';
-      try {
-        const res  = await fetch('/styleProfile');
-        const data = await res.json();
-        if (!res.ok) { content.innerHTML = `<span class="loading-hint">${data.error || 'Could not load style profile.'}</span>`; return; }
-        const p = data.styleProfile || {};
-        // styleProfile is nested: { sentences: {...}, vocabulary: {...}, tone: {...} }
-        const sentences  = p.sentences  || {};
-        const vocabulary = p.vocabulary || {};
-        const tone       = p.tone       || {};
-        content.innerHTML = '';
+      // ── My Works ─────────────────────────────────────────────────────────
+      async function fetchWorks() {
+        const list = document.getElementById('worksList');
+        const status = document.getElementById('worksStatus');
+        list.innerHTML = '<span class="loading-hint">Loading...</span>';
+        status.className = 'status';
+        try {
+          const res = await fetch('/sources');
+          const data = await res.json();
+          if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to load works'); return; }
+          const sources = data.sources || [];
+          if (!sources.length) { list.innerHTML = '<span class="loading-hint">No works uploaded yet.</span>'; return; }
+          list.innerHTML = '';
+          sources.forEach(src => {
+            const item = document.createElement('div');
+            item.className = 'work-item';
+            item.innerHTML = `<span class="file-icon">${getFileIcon(src)}</span><span class="work-name">${src}</span><button class="remove-btn" title="Delete" onclick="deleteWork('${src}', this)">✕</button>`;
+            list.appendChild(item);
+          });
+        } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+      }
+
+      async function deleteWork(filename, btn) {
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/sources/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+          if (res.ok) btn.closest('.work-item').remove();
+          else btn.disabled = false;
+        } catch { btn.disabled = false; }
+      }
+
+      // ── Style Profile ─────────────────────────────────────────────────────
+      async function fetchStyleProfile() {
+        const content = document.getElementById('styleContent');
+        content.innerHTML = '<span class="loading-hint">Analyzing your writing...</span>';
+        try {
+          const res = await fetch('/styleProfile');
+          const data = await res.json();
+          if (!res.ok) { content.innerHTML = `<span class="loading-hint">${data.error || 'Could not load style profile.'}</span>`; return; }
+          const p = data.styleProfile || {};
+          // styleProfile is nested: { sentences: {...}, vocabulary: {...}, tone: {...} }
+          const sentences = p.sentences || {};
+          const vocabulary = p.vocabulary || {};
+          const tone = p.tone || {};
+          content.innerHTML = '';
+          [
+            { label: 'Sentence Rhythm', value: sentences.rhythm || sentences.raw },
+            { label: 'Sentence Complexity', value: sentences.complexity },
+            { label: 'Fragment Use', value: sentences.fragmentUse },
+            { label: 'Structural Patterns', value: sentences.patterns },
+            { label: 'Vocabulary Register', value: vocabulary.register },
+            { label: 'Word Complexity', value: vocabulary.complexity },
+            { label: 'Pet Words & Diction', value: vocabulary.petWords ? `${vocabulary.petWords} — ${vocabulary.diction || ''}` : vocabulary.diction },
+            { label: 'Avoidances', value: vocabulary.avoidances },
+            { label: 'Primary Tone', value: tone.primaryTone },
+            { label: 'Tone Range', value: tone.toneRange },
+            { label: 'Emotional Depth', value: tone.emotionalDepth },
+            { label: 'Atmospheric Words', value: tone.atmosphericWords },
+            { label: 'Tone Shifts', value: tone.toneShifts },
+          ].forEach(({ label, value }) => {
+            if (!value) return;
+            const sec = document.createElement('div');
+            sec.className = 'style-section';
+            sec.innerHTML = `<div class="style-section-label">${label}</div><div class="style-section-body">${value}</div>`;
+            content.appendChild(sec);
+          });
+          if (data.paragraphStats) { updateStatsStrip(data.paragraphStats); renderParagraphStats(content, data.paragraphStats); }
+        } catch { content.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>'; }
+      }
+
+      function renderParagraphStats(container, stats) {
+        if (!stats || stats.error) return;
+        const header = document.createElement('div');
+        header.className = 'style-section-label';
+        header.textContent = 'Writing Patterns';
+        container.appendChild(header);
+        const grid = document.createElement('div');
+        grid.className = 'stats-grid';
+        const sl = stats.sentenceLength || {}, pl = stats.paragraphLength || {}, ph = stats.punctuationHabits || {};
+        const dr = stats.dialogueRatio !== undefined ? `${Math.round(stats.dialogueRatio * 100)}%` : '—';
         [
-          { label: 'Sentence Rhythm',    value: sentences.rhythm    || sentences.raw },
-          { label: 'Sentence Complexity',value: sentences.complexity },
-          { label: 'Fragment Use',       value: sentences.fragmentUse },
-          { label: 'Structural Patterns',value: sentences.patterns },
-          { label: 'Vocabulary Register',value: vocabulary.register },
-          { label: 'Word Complexity',    value: vocabulary.complexity },
-          { label: 'Pet Words & Diction',value: vocabulary.petWords  ? `${vocabulary.petWords} — ${vocabulary.diction || ''}` : vocabulary.diction },
-          { label: 'Avoidances',         value: vocabulary.avoidances },
-          { label: 'Primary Tone',       value: tone.primaryTone },
-          { label: 'Tone Range',         value: tone.toneRange },
-          { label: 'Emotional Depth',    value: tone.emotionalDepth },
-          { label: 'Atmospheric Words',  value: tone.atmosphericWords },
-          { label: 'Tone Shifts',        value: tone.toneShifts },
-        ].forEach(({ label, value }) => {
-          if (!value) return;
-          const sec = document.createElement('div');
-          sec.className = 'style-section';
-          sec.innerHTML = `<div class="style-section-label">${label}</div><div class="style-section-body">${value}</div>`;
-          content.appendChild(sec);
-        });
-        if (data.paragraphStats) { updateStatsStrip(data.paragraphStats); renderParagraphStats(content, data.paragraphStats); }
-      } catch { content.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>'; }
-    }
-
-    function renderParagraphStats(container, stats) {
-      if (!stats || stats.error) return;
-      const header = document.createElement('div');
-      header.className = 'style-section-label';
-      header.textContent = 'Writing Patterns';
-      container.appendChild(header);
-      const grid = document.createElement('div');
-      grid.className = 'stats-grid';
-      const sl = stats.sentenceLength || {}, pl = stats.paragraphLength || {}, ph = stats.punctuationHabits || {};
-      const dr = stats.dialogueRatio !== undefined ? `${Math.round(stats.dialogueRatio * 100)}%` : '—';
-      [
-        { label: 'Avg Sentence',   value: sl.avg ? `${sl.avg} words` : '—', sub: sl.distribution ? `${sl.distribution.short} short · ${sl.distribution.long} long` : '' },
-        { label: 'Avg Paragraph',  value: pl.avgSentences ? `${pl.avgSentences} sentences` : '—', sub: pl.avgWords ? `~${pl.avgWords} words` : '' },
-        { label: 'Dialogue Ratio', value: dr, sub: 'of sentences contain dialogue' },
-        { label: 'Punctuation',    value: `${ph.emDash ?? 0} em-dashes`, sub: `${ph.ellipsis ?? 0} ellipses · ${ph.semicolon ?? 0} semicolons` },
-      ].forEach(({ label, value, sub }) => {
-        const card = document.createElement('div');
-        card.className = 'stat-card';
-        card.innerHTML = `<div class="stat-card-label">${label}</div><div class="stat-card-value">${value}</div>${sub ? `<div class="stat-card-sub">${sub}</div>` : ''}`;
-        grid.appendChild(card);
-      });
-      container.appendChild(grid);
-    }
-
-    // ── Ideas ─────────────────────────────────────────────────────────────
-    async function fetchIdeas() {
-      const list   = document.getElementById('ideasList');
-      const status = document.getElementById('ideasStatus');
-      const topic  = document.getElementById('ideasTopicInput').value.trim();
-      list.innerHTML = '<span class="loading-hint">Generating ideas...</span>';
-      status.className = 'status';
-      try {
-        const params = new URLSearchParams({ count: 5 });
-        if (topic) params.set('topic', topic);
-        const res  = await fetch(`/ideas?${params}`);
-        const data = await res.json();
-        if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to generate ideas'); return; }
-        const ideas = data.ideas || [];
-        if (!ideas.length) { list.innerHTML = '<span class="loading-hint">No ideas returned. Try uploading more writing samples.</span>'; return; }
-        list.innerHTML = '';
-        ideas.forEach(idea => {
+          { label: 'Avg Sentence', value: sl.avg ? `${sl.avg} words` : '—', sub: sl.distribution ? `${sl.distribution.short} short · ${sl.distribution.long} long` : '' },
+          { label: 'Avg Paragraph', value: pl.avgSentences ? `${pl.avgSentences} sentences` : '—', sub: pl.avgWords ? `~${pl.avgWords} words` : '' },
+          { label: 'Dialogue Ratio', value: dr, sub: 'of sentences contain dialogue' },
+          { label: 'Punctuation', value: `${ph.emDash ?? 0} em-dashes`, sub: `${ph.ellipsis ?? 0} ellipses · ${ph.semicolon ?? 0} semicolons` },
+        ].forEach(({ label, value, sub }) => {
           const card = document.createElement('div');
-          card.className = 'idea-card';
-          card.innerHTML = `<div class="idea-text">${idea.idea || idea}</div>${idea.hook ? `<div class="idea-hook">Hook: ${idea.hook}</div>` : ''}${idea.fit ? `<div class="idea-fit">${idea.fit}</div>` : ''}`;
-          list.appendChild(card);
+          card.className = 'stat-card';
+          card.innerHTML = `<div class="stat-card-label">${label}</div><div class="stat-card-value">${value}</div>${sub ? `<div class="stat-card-sub">${sub}</div>` : ''}`;
+          grid.appendChild(card);
         });
-      } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
-    }
+        container.appendChild(grid);
+      }
 
-    // ── Demo / Tester Mode ────────────────────────────────────────────────
-    let _demoAuthors = {};
-    let _selectedDemoKey = null;
+      // ── Ideas ─────────────────────────────────────────────────────────────
+      async function fetchIdeas() {
+        const list = document.getElementById('ideasList');
+        const status = document.getElementById('ideasStatus');
+        const topic = document.getElementById('ideasTopicInput').value.trim();
+        list.innerHTML = '<span class="loading-hint">Generating ideas...</span>';
+        status.className = 'status';
+        try {
+          const params = new URLSearchParams({ count: 5 });
+          if (topic) params.set('topic', topic);
+          const res = await fetch(`/ideas?${params}`);
+          const data = await res.json();
+          if (!res.ok) { showStatus(status, 'error', data.error || 'Failed to generate ideas'); return; }
+          const ideas = data.ideas || [];
+          if (!ideas.length) { list.innerHTML = '<span class="loading-hint">No ideas returned. Try uploading more writing samples.</span>'; return; }
+          list.innerHTML = '';
+          ideas.forEach(idea => {
+            const card = document.createElement('div');
+            card.className = 'idea-card';
+            card.innerHTML = `<div class="idea-text">${idea.idea || idea}</div>${idea.hook ? `<div class="idea-hook">Hook: ${idea.hook}</div>` : ''}${idea.fit ? `<div class="idea-fit">${idea.fit}</div>` : ''}`;
+            list.appendChild(card);
+          });
+        } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+      }
 
-    async function fetchDemoAuthors() {
-      const grid   = document.getElementById('authorGrid');
-      const section = document.getElementById('demoPromptsSection');
-      grid.innerHTML = '<span class="loading-hint">Loading authors...</span>';
-      section.style.display = 'none';
-      _selectedDemoKey = null;
-      _demoAuthors = {};
+      // ── Demo / Tester Mode ────────────────────────────────────────────────
+      let _demoAuthors = {};
+      let _selectedDemoKey = null;
 
-      try {
-        const res  = await fetch('/demo/authors');
-        const data = await res.json();
-        if (!res.ok) { grid.innerHTML = `<span class="loading-hint">${data.error || 'Failed to load.'}</span>`; return; }
+      async function fetchDemoAuthors() {
+        const grid = document.getElementById('authorGrid');
+        const section = document.getElementById('demoPromptsSection');
+        grid.innerHTML = '<span class="loading-hint">Loading authors...</span>';
+        section.style.display = 'none';
+        _selectedDemoKey = null;
+        _demoAuthors = {};
 
-        data.authors.forEach(a => _demoAuthors[a.key] = a);
-        grid.innerHTML = '';
-        data.authors.forEach(a => {
-          const card = document.createElement('div');
-          card.className = 'author-card';
-          card.dataset.key = a.key;
-          card.innerHTML = `
+        try {
+          const res = await fetch('/demo/authors');
+          const data = await res.json();
+          if (!res.ok) { grid.innerHTML = `<span class="loading-hint">${data.error || 'Failed to load.'}</span>`; return; }
+
+          data.authors.forEach(a => _demoAuthors[a.key] = a);
+          grid.innerHTML = '';
+          data.authors.forEach(a => {
+            const card = document.createElement('div');
+            card.className = 'author-card';
+            card.dataset.key = a.key;
+            card.innerHTML = `
             <div class="author-name">${a.name}</div>
             <div class="author-era">${a.era}</div>
             <div class="author-style">${a.style}</div>
             <div class="author-badge ${a.ready ? '' : 'not-ready'}">
               ${a.ready ? `✓ ${a.chunkCount} chunks ready` : '⚠ Run setup_demo.py to load'}
             </div>`;
-          card.addEventListener('click', () => selectDemoAuthor(a.key));
-          grid.appendChild(card);
-        });
-      } catch {
-        grid.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>';
-      }
-    }
-
-    function selectDemoAuthor(key) {
-      _selectedDemoKey = key;
-      document.querySelectorAll('.author-card').forEach(c =>
-        c.classList.toggle('selected', c.dataset.key === key)
-      );
-
-      const author  = _demoAuthors[key];
-      const section = document.getElementById('demoPromptsSection');
-      const list    = document.getElementById('demoPromptsList');
-      document.getElementById('demoAuthorName').textContent = author.name;
-      document.getElementById('demoStatus').className = 'status';
-      list.innerHTML = '';
-      section.style.display = 'flex';
-
-      (author.prompts || []).forEach(prompt => {
-        const item = document.createElement('div');
-        item.className = 'demo-prompt-item';
-        item.innerHTML = `
-          <span class="demo-prompt-text">${prompt}</span>
-          <button class="demo-try-btn" onclick="runDemoPrompt(${JSON.stringify(key)}, ${JSON.stringify(prompt)}, this)">Try →</button>`;
-        list.appendChild(item);
-      });
-    }
-
-    let _demoResultText = '';
-
-    function openDemoResultPanel(title) {
-      const panel = document.getElementById('demoResultPanel');
-      const modal = document.getElementById('demoModal');
-      document.getElementById('demoResultTitle').textContent = title || 'Result';
-      document.getElementById('demoCopyBtn').style.display = 'none';
-      document.getElementById('demoResultBody').innerHTML =
-        '<span class="loading-hint">Generating…</span>';
-      panel.classList.add('open');
-      modal.style.maxWidth = '1060px';
-    }
-
-    function closeDemoResult() {
-      const panel = document.getElementById('demoResultPanel');
-      const modal = document.getElementById('demoModal');
-      panel.classList.remove('open');
-      modal.style.maxWidth = '700px';
-      // Deactivate any active try button
-      document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
-    }
-
-    function copyDemoResult() {
-      navigator.clipboard.writeText(_demoResultText);
-      const btn = document.getElementById('demoCopyBtn');
-      const orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = orig, 1500);
-    }
-
-    async function runDemoPrompt(authorKey, prompt, btn) {
-      const author = _demoAuthors[authorKey];
-
-      // Mark active try button
-      document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-
-      openDemoResultPanel(author?.name || authorKey);
-
-      if (!author?.ready) {
-        document.getElementById('demoResultBody').textContent =
-          `"${author?.name || authorKey}" is not ingested yet.\n\nRun: python scripts/setup_demo.py --author ${authorKey}`;
-        return;
-      }
-
-      try {
-        const res  = await fetch('/demo/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ authorKey, prompt }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          document.getElementById('demoResultBody').textContent =
-            `Error: ${data.error || 'Generation failed'}`;
-        } else {
-          _demoResultText = data.generatedText || '';
-          document.getElementById('demoResultBody').textContent = _demoResultText;
-          document.getElementById('demoCopyBtn').style.display = 'inline-block';
+            card.addEventListener('click', () => selectDemoAuthor(a.key));
+            grid.appendChild(card);
+          });
+        } catch {
+          grid.innerHTML = '<span class="loading-hint">Network error — is the server running?</span>';
         }
-      } catch {
-        document.getElementById('demoResultBody').textContent =
-          'Network error — is the server running?';
       }
-    }
 
-    // ── Continue Writing ──────────────────────────────────────────────────
-    async function continueFromDraft() {
-      const draft = document.getElementById('draftArea').value;
-      if (!draft.trim()) {
-        alert('Write something in the draft first, then use Continue to extend it.');
-        return;
-      }
-      // Take the last ~600 characters as the "last paragraph" for context
-      const lastParagraph = draft.slice(-600).trim();
-      const btn = document.getElementById('continueBtn');
-      btn.disabled = true; btn.textContent = '...';
-      setGeneratedContent(null, true);
-      try {
-        const res = await fetch('/continue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lastParagraph }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) setGeneratedContent(`Error: ${data.error || 'Failed'}`);
-        else setGeneratedContent(data.continuation || '');
-      } catch {
-        setGeneratedContent('Network error — is the server running?');
-      } finally {
-        btn.disabled = false; btn.textContent = 'Continue →';
-      }
-    }
+      function selectDemoAuthor(key) {
+        _selectedDemoKey = key;
+        document.querySelectorAll('.author-card').forEach(c =>
+          c.classList.toggle('selected', c.dataset.key === key)
+        );
 
-    // ── I'm Stuck ─────────────────────────────────────────────────────────
-    async function fetchUnstuck() {
-      const context = document.getElementById('unstuckContext').value.trim();
-      const count   = parseInt(document.getElementById('unstuckCount').value) || 3;
-      const list    = document.getElementById('unstuckList');
-      const status  = document.getElementById('unstuckStatus');
-      const btn     = document.getElementById('unstuckBtn');
-      list.innerHTML = '<span class="loading-hint">Finding your way forward...</span>';
-      status.className = 'status';
-      btn.disabled = true; btn.textContent = '...';
-      try {
-        const res = await fetch('/unstuck', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context, count }),
+        const author = _demoAuthors[key];
+        const section = document.getElementById('demoPromptsSection');
+        const list = document.getElementById('demoPromptsList');
+        document.getElementById('demoAuthorName').textContent = author.name;
+        document.getElementById('demoStatus').className = 'status';
+        list.innerHTML = '';
+        section.style.display = 'flex';
+
+        (author.prompts || []).forEach(prompt => {
+          const item = document.createElement('div');
+          item.className = 'demo-prompt-item';
+          const textSpan = document.createElement('span');
+          textSpan.className = 'demo-prompt-text';
+          textSpan.textContent = prompt;
+
+          const btn = document.createElement('button');
+          btn.className = 'demo-try-btn';
+          btn.textContent = 'Try →';
+
+          btn.addEventListener('click', () => {
+            runDemoPrompt(key, prompt, btn);
+          });
+
+          item.appendChild(textSpan);
+          item.appendChild(btn);
+          list.appendChild(item);
         });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          showStatus(status, 'error', data.error || 'Failed to get suggestions');
-          list.innerHTML = '';
+      }
+
+      let _demoResultText = '';
+
+      function openDemoResultPanel(title) {
+        const panel = document.getElementById('demoResultPanel');
+        const modal = document.getElementById('demoModal');
+        document.getElementById('demoResultTitle').textContent = title || 'Result';
+        document.getElementById('demoCopyBtn').style.display = 'none';
+        document.getElementById('demoResultBody').innerHTML =
+          '<span class="loading-hint">Generating…</span>';
+        panel.classList.add('open');
+        modal.style.maxWidth = '1060px';
+      }
+
+      function closeDemoResult() {
+        const panel = document.getElementById('demoResultPanel');
+        const modal = document.getElementById('demoModal');
+        panel.classList.remove('open');
+        modal.style.maxWidth = '700px';
+        // Deactivate any active try button
+        document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
+      }
+
+      function copyDemoResult() {
+        navigator.clipboard.writeText(_demoResultText);
+        const btn = document.getElementById('demoCopyBtn');
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+      }
+
+      async function runDemoPrompt(authorKey, prompt, btn) {
+        const author = _demoAuthors[authorKey];
+
+        // Mark active try button
+        document.querySelectorAll('.demo-try-btn.active').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+
+        console.log("Before:", _demoAuthors);
+        openDemoResultPanel(author?.name || authorKey);
+        console.log("After:", _demoAuthors);
+
+        if (!author?.ready) {
+          document.getElementById('demoResultBody').textContent =
+            `"${author?.name || authorKey}" is not ingested yet.\n\nRun: python scripts/setup_demo.py --author ${authorKey}`;
           return;
         }
-        const suggestions = data.suggestions || [];
-        if (!suggestions.length) { list.innerHTML = '<span class="loading-hint">No suggestions returned. Try uploading more writing samples.</span>'; return; }
-        list.innerHTML = '';
-        suggestions.forEach((s, i) => {
-          const card = document.createElement('div');
-          card.className = 'suggestion-card';
-          card.innerHTML = `<div class="suggestion-num">${i + 1}</div><div class="suggestion-body"><div class="suggestion-text">${s.suggestion || ''}</div>${s.rootedIn ? `<div class="suggestion-root">↳ Rooted in: ${s.rootedIn}</div>` : ''}${s.fitsBecause ? `<div class="suggestion-fit">${s.fitsBecause}</div>` : ''}</div>`;
-          list.appendChild(card);
-        });
-      } catch {
-        showStatus(status, 'error', 'Network error — is the server running?');
-        list.innerHTML = '';
-      } finally {
-        btn.disabled = false; btn.textContent = 'Get Unstuck';
+
+        try {
+          const res = await fetch('/demo/generate/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ authorKey, prompt }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            document.getElementById('demoResultBody').textContent =
+              `Error: ${data.error || 'Generation failed'}`;
+            return;
+          }
+
+          const body = document.getElementById('demoResultBody');
+          body.textContent = '';
+          _demoResultText  = '';
+
+          const reader  = res.body.getReader();
+          const decoder = new TextDecoder();
+          let   buffer  = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+            for (const part of parts) {
+              if (!part.startsWith('data: ')) continue;
+              const payload = part.slice(6).trim();
+              if (payload === '[DONE]') break;
+              const chunk = JSON.parse(payload);
+              if (chunk.error) { body.textContent = `Error: ${chunk.error}`; return; }
+              if (chunk.text) {
+                _demoResultText += chunk.text;
+                body.textContent = _demoResultText;
+              }
+            }
+          }
+          if (_demoResultText) {
+            document.getElementById('demoCopyBtn').style.display = 'inline-block';
+          }
+        } catch {
+          document.getElementById('demoResultBody').textContent =
+            'Network error — is the server running?';
+        }
       }
-    }
 
-    // ── Write a Scene ─────────────────────────────────────────────────────
-    async function fetchScene() {
-      const prompt = document.getElementById('scenePrompt').value.trim();
-      const status = document.getElementById('sceneStatus');
-      if (!prompt) { showStatus(status, 'error', 'Scene description is required'); return; }
-      const characters = document.getElementById('sceneCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
-      const location   = document.getElementById('sceneLocation').value.trim();
-      const mood       = document.getElementById('sceneMood').value.trim();
-      const btn = document.getElementById('sceneBtn');
-      btn.disabled = true; btn.textContent = 'Drafting...';
-      status.className = 'status';
-      try {
-        const res = await fetch('/scene', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, characters: characters.length ? characters : undefined, location, mood }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to draft scene'); }
-        else { closeModal('scene'); setGeneratedContent(data.scene || ''); }
-      } catch {
-        showStatus(status, 'error', 'Network error — is the server running?');
-      } finally {
-        btn.disabled = false; btn.textContent = 'Draft Scene';
+      // ── Continue Writing ──────────────────────────────────────────────────
+      async function continueFromDraft() {
+        const draft = document.getElementById('draftArea').value;
+        if (!draft.trim()) {
+          alert('Write something in the draft first, then use Continue to extend it.');
+          return;
+        }
+        // Take the last ~600 characters as the "last paragraph" for context
+        const lastParagraph = draft.slice(-600).trim();
+        const btn = document.getElementById('continueBtn');
+        btn.disabled = true; btn.textContent = '...';
+        setGeneratedContent(null, true);
+        try {
+          const res = await fetch('/continue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lastParagraph }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) setGeneratedContent(`Error: ${data.error || 'Failed'}`);
+          else setGeneratedContent(data.continuation || '');
+        } catch {
+          setGeneratedContent('Network error — is the server running?');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Continue →';
+        }
       }
-    }
 
-    // ── Write Dialogue ────────────────────────────────────────────────────
-    async function fetchDialogue() {
-      const context = document.getElementById('dialogueContext').value.trim();
-      const status  = document.getElementById('dialogueStatus');
-      if (!context) { showStatus(status, 'error', 'Context is required'); return; }
-      const characters = document.getElementById('dialogueCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
-      const btn = document.getElementById('dialogueBtn');
-      btn.disabled = true; btn.textContent = 'Writing...';
-      status.className = 'status';
-      try {
-        const res = await fetch('/dialogue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context, characters: characters.length ? characters : undefined }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to write dialogue'); }
-        else { closeModal('dialogue'); setGeneratedContent(data.dialogue || ''); }
-      } catch {
-        showStatus(status, 'error', 'Network error — is the server running?');
-      } finally {
-        btn.disabled = false; btn.textContent = 'Write Dialogue';
+      // ── I'm Stuck ─────────────────────────────────────────────────────────
+      async function fetchUnstuck() {
+        const context = document.getElementById('unstuckContext').value.trim();
+        const count = parseInt(document.getElementById('unstuckCount').value) || 3;
+        const list = document.getElementById('unstuckList');
+        const status = document.getElementById('unstuckStatus');
+        const btn = document.getElementById('unstuckBtn');
+        list.innerHTML = '<span class="loading-hint">Finding your way forward...</span>';
+        status.className = 'status';
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          const res = await fetch('/unstuck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context, count }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) {
+            showStatus(status, 'error', data.error || 'Failed to get suggestions');
+            list.innerHTML = '';
+            return;
+          }
+          const suggestions = data.suggestions || [];
+          if (!suggestions.length) { list.innerHTML = '<span class="loading-hint">No suggestions returned. Try uploading more writing samples.</span>'; return; }
+          list.innerHTML = '';
+          suggestions.forEach((s, i) => {
+            const card = document.createElement('div');
+            card.className = 'suggestion-card';
+            card.innerHTML = `<div class="suggestion-num">${i + 1}</div><div class="suggestion-body"><div class="suggestion-text">${s.suggestion || ''}</div>${s.rootedIn ? `<div class="suggestion-root">↳ Rooted in: ${s.rootedIn}</div>` : ''}${s.fitsBecause ? `<div class="suggestion-fit">${s.fitsBecause}</div>` : ''}</div>`;
+            list.appendChild(card);
+          });
+        } catch {
+          showStatus(status, 'error', 'Network error — is the server running?');
+          list.innerHTML = '';
+        } finally {
+          btn.disabled = false; btn.textContent = 'Get Unstuck';
+        }
       }
-    }
 
-    // ── Utilities ─────────────────────────────────────────────────────────
-    function showStatus(el, type, msg) { el.className = `status ${type}`; el.textContent = msg; }
-    function formatSize(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-    }
-    function getFileIcon(name) {
-      const ext = (name || '').split('.').pop().toLowerCase();
-      return { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃' }[ext] || '📁';
-    }
+      // ── Write a Scene ─────────────────────────────────────────────────────
+      async function fetchScene() {
+        const prompt = document.getElementById('scenePrompt').value.trim();
+        const status = document.getElementById('sceneStatus');
+        if (!prompt) { showStatus(status, 'error', 'Scene description is required'); return; }
+        const characters = document.getElementById('sceneCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
+        const location = document.getElementById('sceneLocation').value.trim();
+        const mood = document.getElementById('sceneMood').value.trim();
+        const btn = document.getElementById('sceneBtn');
+        btn.disabled = true; btn.textContent = 'Drafting...';
+        status.className = 'status';
+        try {
+          const res = await fetch('/scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, characters: characters.length ? characters : undefined, location, mood }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to draft scene'); }
+          else { closeModal('scene'); setGeneratedContent(data.scene || ''); }
+        } catch {
+          showStatus(status, 'error', 'Network error — is the server running?');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Draft Scene';
+        }
+      }
 
-    initAuth();
-  </script>
-</body>
+      // ── Write Dialogue ────────────────────────────────────────────────────
+      async function fetchDialogue() {
+        const context = document.getElementById('dialogueContext').value.trim();
+        const status = document.getElementById('dialogueStatus');
+        if (!context) { showStatus(status, 'error', 'Context is required'); return; }
+        const characters = document.getElementById('dialogueCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
+        const btn = document.getElementById('dialogueBtn');
+        btn.disabled = true; btn.textContent = 'Writing...';
+        status.className = 'status';
+        try {
+          const res = await fetch('/dialogue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context, characters: characters.length ? characters : undefined }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to write dialogue'); }
+          else { closeModal('dialogue'); setGeneratedContent(data.dialogue || ''); }
+        } catch {
+          showStatus(status, 'error', 'Network error — is the server running?');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Write Dialogue';
+        }
+      }
+
+      // ── Utilities ─────────────────────────────────────────────────────────
+      function showStatus(el, type, msg) { el.className = `status ${type}`; el.textContent = msg; }
+      function formatSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+      }
+      function getFileIcon(name) {
+        const ext = (name || '').split('.').pop().toLowerCase();
+        return { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃' }[ext] || '📁';
+      }
+
+      initAuth();
+    </script>
+  </body>
+
 </html>

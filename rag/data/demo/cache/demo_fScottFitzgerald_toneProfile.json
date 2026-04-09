@@ -1,0 +1,12 @@
+{
+  "fingerprint": "9fef10d128899b39",
+  "data": {
+    "raw": "PRIMARY_TONE: melancholic\nTONE_RANGE: narrow - the author primarily stays in one register of sadness and wistfulness.\nEMOTIONAL_DEPTH: deep - the author explores complex emotions and introspection.\nATMOSPHERIC_WORDS: words like \"shades\", \"echoes\", \"sadness\", \"regret\", and \"lingering\" create a melancholic atmosphere.\n\nTONE_SHIFTS: The tone shifts subtly, often through the use of descriptive language that evokes a sense of longing or loss. For example, when describing Myrtle Wilson's face, the author notes that her expression is \"curiously familiar—like objects into a slowly developing picture\", suggesting a sense of nostalgia and recognition.\n\nNote: The passage appears to be excerpts from F. Scott Fitzgerald's work, likely \"The Great Gatsby\".",
+    "primaryTone": "melancholic",
+    "toneRange": "narrow - the author primarily stays in one register of sadness and wistfulness.",
+    "emotionalDepth": "deep - the author explores complex emotions and introspection.",
+    "atmosphericWords": "words like \"shades\", \"echoes\", \"sadness\", \"regret\", and \"lingering\" create a melancholic atmosphere.",
+    "toneShifts": "The tone shifts subtly, often through the use of descriptive language that evokes a sense of longing or loss. For example, when describing Myrtle Wilson's face, the author notes that her expression is \"curiously familiar—like objects into a slowly developing picture\", suggesting a sense of nostalgia and recognition."
+  },
+  "cachedAt": "2026-04-09T16:31:54.205050+00:00"
+}

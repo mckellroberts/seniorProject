@@ -137,6 +137,40 @@
       text-align: center;
       margin-top: 0.5rem;
     }
+
+    .email-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .email-row input { flex: 1; min-width: 0; }
+    .send-code-btn {
+      background: none;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .send-code-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: #fff;
+    }
+    .send-code-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .code-row { display: flex; flex-direction: column; gap: 0.35rem; }
+    .code-hint { font-size: 0.78rem; color: var(--success); min-height: 1.1em; }
+
+    input.code-input {
+      letter-spacing: 0.35em;
+      font-size: 1.35rem;
+      text-align: center;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -173,6 +207,18 @@
         <input id="regUsername" type="text" autocomplete="username" placeholder="choose a username" required minlength="3" />
       </div>
       <div>
+        <label for="regEmail">Email</label>
+        <div class="email-row">
+          <input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+          <button type="button" class="send-code-btn" id="sendCodeBtn" onclick="sendVerificationCode()">Send Code</button>
+        </div>
+      </div>
+      <div class="code-row" id="codeRow" style="display:none">
+        <label for="regCode">Verification Code</label>
+        <input id="regCode" type="text" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
+        <span class="code-hint" id="codeHint"></span>
+      </div>
+      <div>
         <label for="regPassword">Password</label>
         <input id="regPassword" type="password" autocomplete="new-password" placeholder="at least 8 characters" required minlength="8" />
       </div>
@@ -181,7 +227,7 @@
         <input id="regConfirm" type="password" autocomplete="new-password" placeholder="••••••••" required />
       </div>
       <div class="error-msg" id="registerError"></div>
-      <button class="submit-btn" type="submit" id="registerBtn">Create Account</button>
+      <button class="submit-btn" type="submit" id="registerBtn" disabled>Send a code to your email first</button>
     </form>
 
     <p class="hint" id="formHint">Sign in to access your personal writing workspace.</p>
@@ -201,6 +247,13 @@
       document.getElementById('registerForm').style.display = isLogin ? 'none' : 'flex';
       document.getElementById('loginError').textContent    = '';
       document.getElementById('registerError').textContent = '';
+      // Reset register code state when switching tabs
+      document.getElementById('codeRow').style.display    = 'none';
+      document.getElementById('codeHint').textContent     = '';
+      document.getElementById('regCode').value            = '';
+      document.getElementById('registerBtn').disabled     = true;
+      document.getElementById('registerBtn').textContent  = 'Send a code to your email first';
+      document.getElementById('sendCodeBtn').textContent  = 'Send Code';
       document.getElementById('formHint').textContent = isLogin
         ? 'Sign in to access your personal writing workspace.'
         : 'Your writing stays private and local to this server.';
@@ -232,6 +285,44 @@
       }
     }
 
+    async function sendVerificationCode() {
+      const email   = document.getElementById('regEmail').value.trim();
+      const sendBtn = document.getElementById('sendCodeBtn');
+      const err     = document.getElementById('registerError');
+      const hint    = document.getElementById('codeHint');
+      const codeRow = document.getElementById('codeRow');
+      const regBtn  = document.getElementById('registerBtn');
+
+      err.textContent  = '';
+      hint.textContent = '';
+
+      if (!email) { err.textContent = 'Enter your email first'; return; }
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending…';
+
+      try {
+        const res  = await fetch('/auth/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok) { err.textContent = data.error; return; }
+
+        codeRow.style.display = 'flex';
+        document.getElementById('regCode').focus();
+        hint.textContent = `Code sent to ${email} — check your inbox (expires in 10 min)`;
+        regBtn.disabled  = false;
+        regBtn.textContent = 'Create Account';
+        sendBtn.textContent = 'Resend';
+      } catch {
+        err.textContent = 'Network error — is the server running?';
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
     async function handleRegister(e) {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
@@ -247,13 +338,22 @@
         return;
       }
 
+      const code = document.getElementById('regCode').value.trim();
+      if (!code) {
+        err.textContent = 'Enter the verification code sent to your email';
+        btn.disabled = false;
+        return;
+      }
+
       try {
         const res = await fetch('/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: document.getElementById('regUsername').value.trim(),
+            email:    document.getElementById('regEmail').value.trim(),
             password,
+            code,
           }),
         });
         const data = await res.json();

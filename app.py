@@ -1,7 +1,7 @@
-import requests, os, subprocess, time, secrets
+import json, requests, os, subprocess, time, secrets
 from pathlib import Path
 
-from flask import Flask, request, jsonify, send_from_directory, redirect, url_for
+from flask import Flask, request, jsonify, send_from_directory, redirect, url_for, Response, stream_with_context
 from flask_cors import CORS
 from flask_login import LoginManager, login_required, current_user
 
@@ -9,6 +9,7 @@ from rag.tools.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
 from rag.tools.vectorStore import ChromaRetriever
 from rag.agents.agent import (
     generateInUserVoice,
+    streamInUserVoice,
     getWritingIdeas,
     continueWriting,
     getUnstuck,
@@ -72,7 +73,7 @@ DEMO_VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
 def _ollamaRunning() -> bool:
     try:
-        return requests.get("http://localhost:11434", timeout=2).status_code == 200
+        return requests.get("http://localhost:11434", timeout=5).status_code == 200
     except requests.RequestException:
         return False
 
@@ -241,6 +242,28 @@ def generate():
         return jsonify(result), 400
 
     return jsonify(result)
+
+
+@app.route("/generate/stream", methods=["POST"])
+@login_required
+def generateStream():
+    """Stream generated text chunk-by-chunk as Server-Sent Events."""
+    data      = request.json or {}
+    prompt    = data.get("prompt", "").strip()
+    styleHint = data.get("styleHint", "")
+    if not prompt:
+        return jsonify({"error": "prompt is required"}), 400
+
+    userId = str(current_user.id)
+
+    @stream_with_context
+    def generate():
+        for chunk in streamInUserVoice(prompt, userId, VECTOR_STORE_DIR, styleHint):
+            yield f"data: {json.dumps(chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
 @app.route("/styleProfile", methods=["GET"])
@@ -412,11 +435,14 @@ def demoGenerate():
     if authorKey not in DEMO_AUTHORS:
         return jsonify({"error": f"Unknown author key: {authorKey}"}), 400
 
+    voiceInstructions = DEMO_AUTHORS[authorKey].get("voiceInstructions", "")
+
     try:
         result = generateInUserVoice(
             prompt=prompt,
             userId=f"demo_{authorKey}",
             vectorStoreDir=DEMO_VECTOR_STORE_DIR,
+            styleHint=voiceInstructions,
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -429,6 +455,33 @@ def demoGenerate():
         "authorKey":  authorKey,
         "authorName": DEMO_AUTHORS[authorKey]["name"],
     })
+
+
+@app.route("/demo/generate/stream", methods=["POST"])
+@login_required
+def demoGenerateStream():
+    """Stream demo generation as Server-Sent Events."""
+    from rag.demo.authors import DEMO_AUTHORS
+    data      = request.json or {}
+    authorKey = data.get("authorKey", "").strip()
+    prompt    = data.get("prompt", "").strip()
+
+    if not authorKey or not prompt:
+        return jsonify({"error": "authorKey and prompt are required"}), 400
+    if authorKey not in DEMO_AUTHORS:
+        return jsonify({"error": f"Unknown author key: {authorKey}"}), 400
+
+    userId            = f"demo_{authorKey}"
+    voiceInstructions = DEMO_AUTHORS[authorKey].get("voiceInstructions", "")
+
+    @stream_with_context
+    def generate():
+        for chunk in streamInUserVoice(prompt, userId, DEMO_VECTOR_STORE_DIR, styleHint=voiceInstructions):
+            yield f"data: {json.dumps(chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
 @app.route("/demo/unstuck", methods=["POST"])

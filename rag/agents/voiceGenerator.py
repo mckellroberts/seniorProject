@@ -7,6 +7,7 @@ as possible.
 
 from __future__ import annotations
 
+import json
 import requests
 import os
 from pathlib import Path
@@ -94,15 +95,18 @@ def generateInVoice(
         f"{writingContext}"
     )
 
-    userMessage = f"Task: {prompt}"
     if styleHint:
-        userMessage += f"\nAdditional guidance from the author: {styleHint}"
+        systemPrompt += (
+            f"\n\n=== CRITICAL VOICE INSTRUCTIONS (follow these above all else) ===\n{styleHint}"
+        )
+
+    userMessage = f"Task: {prompt}"
 
     try:
         response = requests.post(
             OLLAMA_URL,
             json={"model": OLLAMA_MODEL, "prompt": userMessage, "system": systemPrompt, "stream": False},
-            timeout=120,
+            timeout=300,
         )
         response.raise_for_status()
         return {
@@ -111,3 +115,91 @@ def generateInVoice(
         }
     except requests.RequestException as e:
         return {"error": f"Ollama request failed: {e}", "generatedText": None, "sourcesUsed": []}
+
+
+def generateInVoiceStream(
+    prompt: str,
+    retriever: ChromaRetriever,
+    styleProfile: dict,
+    storyPatterns: dict,
+    styleHint: str = "",
+):
+    """
+    Streaming version of generateInVoice.
+    Yields text chunks as Ollama produces them.
+    Raises requests.RequestException on connection failure.
+    """
+    relevantChunks = retriever.retrieve(query=prompt, limit=RAG_TOP_K)
+    writingContext  = "\n\n---\n\n".join(r["document"] for r in relevantChunks)
+    sources         = list({r["metadata"].get("source", "unknown") for r in relevantChunks})
+
+    if not writingContext:
+        yield {"error": "No relevant writing samples found to generate from.", "sources": []}
+        return
+
+    sentenceSection   = styleProfile.get("sentences", {})
+    vocabularySection = styleProfile.get("vocabulary", {})
+    toneSection       = styleProfile.get("tone", {})
+
+    sentenceStyle = (
+        sentenceSection.get("rhythm", sentenceSection.get("raw", ""))
+        if isinstance(sentenceSection, dict) else str(sentenceSection)
+    )
+    vocabulary = (
+        vocabularySection.get("register", vocabularySection.get("raw", ""))
+        if isinstance(vocabularySection, dict) else str(vocabularySection)
+    )
+    tone = (
+        toneSection.get("primaryTone", toneSection.get("raw", ""))
+        if isinstance(toneSection, dict) else str(toneSection)
+    )
+    habits = (
+        sentenceSection.get("patterns", "")
+        if isinstance(sentenceSection, dict) else ""
+    )
+    styleSummary = f"Sentences: {sentenceStyle} | Vocabulary: {vocabulary} | Tone: {tone}"
+    arcType      = storyPatterns.get("arcType", "")
+    pacing       = storyPatterns.get("pacing", "")
+    narrativePOV = storyPatterns.get("narrativePOV", "")
+
+    systemPrompt = (
+        "You are a writing assistant. Your ONLY job is to generate text that is "
+        "indistinguishable from the author's own writing. Do not default to a generic style.\n\n"
+        "=== AUTHOR STYLE PROFILE ===\n"
+        f"Overall: {styleSummary}\n"
+        f"Sentences: {sentenceStyle}\n"
+        f"Vocabulary: {vocabulary}\n"
+        f"Tone: {tone}\n"
+        f"Distinctive habits: {habits}\n\n"
+        "=== NARRATIVE PATTERNS ===\n"
+        f"Story arc preference: {arcType}\n"
+        f"Pacing: {pacing}\n"
+        f"Point of view: {narrativePOV}\n\n"
+        "=== WRITING SAMPLES (mirror these exactly) ===\n"
+        f"{writingContext}"
+    )
+
+    if styleHint:
+        systemPrompt += (
+            f"\n\n=== CRITICAL VOICE INSTRUCTIONS (follow these above all else) ===\n{styleHint}"
+        )
+
+    userMessage = f"Task: {prompt}"
+
+    response = requests.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_MODEL, "prompt": userMessage, "system": systemPrompt, "stream": True},
+        stream=True,
+        timeout=(10, 300),  # (connect, read)
+    )
+    response.raise_for_status()
+
+    for line in response.iter_lines():
+        if not line:
+            continue
+        chunk = json.loads(line)
+        text = chunk.get("response", "")
+        if text:
+            yield {"text": text, "sources": sources}
+        if chunk.get("done"):
+            break

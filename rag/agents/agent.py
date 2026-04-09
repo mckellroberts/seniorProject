@@ -22,7 +22,7 @@ from .plotTracker        import trackPlot
 from .paragraphAnalyzer  import analyzeParagraphs
 
 # Generation agents
-from .voiceGenerator    import generateInVoice
+from .voiceGenerator    import generateInVoice, generateInVoiceStream
 from .ideaGenerator     import generateIdeas
 from .stuckAgent        import getUnstuckSuggestions
 from .continuationAgent import continueWriting as _continueWriting
@@ -30,7 +30,10 @@ from .sceneAgent        import draftScene as _draftScene
 from .dialogueAgent     import writeDialogue as _writeDialogue
 
 # Cache
-from .profileCache import computeFingerprint, loadProfile, saveProfile
+from .profileCache import (
+    computeFingerprint, loadProfile, saveProfile,
+    loadGeneration, saveGeneration,
+)
 
 _CACHE_DIR_NAME = "cache"
 
@@ -156,6 +159,13 @@ def generateInUserVoice(
         return {**_NO_SAMPLES, "generatedText": None, "styleProfile": None,
                 "storyPatterns": None, "sourcesUsed": []}
 
+    cacheDir    = _cacheDir(vectorStoreDir)
+    fingerprint = computeFingerprint(retriever.count(), retriever.listSources())
+
+    cached = loadGeneration(cacheDir, userId, fingerprint, prompt, extra=styleHint)
+    if cached is not None:
+        return cached
+
     styleProfile, storyPatterns, paragraphStats, _, _, _, _ = _getProfiles(
         retriever, userId, vectorStoreDir
     )
@@ -166,7 +176,7 @@ def generateInUserVoice(
         storyPatterns=storyPatterns,
         styleHint=styleHint,
     )
-    return {
+    result = {
         "generatedText":  generation.get("generatedText"),
         "styleProfile":   styleProfile,
         "storyPatterns":  storyPatterns,
@@ -174,6 +184,55 @@ def generateInUserVoice(
         "sourcesUsed":    generation.get("sourcesUsed", []),
         **({ "error": generation["error"] } if "error" in generation else {}),
     }
+    if generation.get("generatedText"):
+        saveGeneration(cacheDir, userId, fingerprint, prompt, result, extra=styleHint)
+    return result
+
+
+def streamInUserVoice(
+    prompt: str,
+    userId: str,
+    vectorStoreDir: Path,
+    styleHint: str = "",
+):
+    """
+    Streaming generation in the user's voice.
+    Yields dicts: {"text": "..."} for each chunk, {"error": "..."} on failure.
+    Profiles are loaded from cache (or computed) before streaming begins.
+    """
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        yield {"error": _NO_SAMPLES["error"]}
+        return
+
+    styleProfile, storyPatterns, _, _, _, _, _ = _getProfiles(retriever, userId, vectorStoreDir)
+
+    try:
+        full_text = []
+        for chunk in generateInVoiceStream(
+            prompt=prompt,
+            retriever=retriever,
+            styleProfile=styleProfile,
+            storyPatterns=storyPatterns,
+            styleHint=styleHint,
+        ):
+            if "error" in chunk:
+                yield chunk
+                return
+            yield chunk
+            full_text.append(chunk["text"])
+
+        # Cache the completed result so the next identical request is instant
+        if full_text:
+            cacheDir    = _cacheDir(vectorStoreDir)
+            fingerprint = computeFingerprint(retriever.count(), retriever.listSources())
+            saveGeneration(
+                cacheDir, userId, fingerprint, prompt,
+                {"generatedText": "".join(full_text), "sourcesUsed": chunk.get("sources", [])},
+                extra=styleHint,
+            )
+    except Exception as e:
+        yield {"error": f"Ollama request failed: {e}"}
 
 
 def continueWriting(lastParagraph: str, userId: str, vectorStoreDir: Path) -> dict:
@@ -182,16 +241,26 @@ def continueWriting(lastParagraph: str, userId: str, vectorStoreDir: Path) -> di
     if retriever is None:
         return {**_NO_SAMPLES, "continuation": None, "sourcesUsed": []}
 
+    cacheDir    = _cacheDir(vectorStoreDir)
+    fingerprint = computeFingerprint(retriever.count(), retriever.listSources())
+
+    cached = loadGeneration(cacheDir, userId, fingerprint, lastParagraph, extra="continue")
+    if cached is not None:
+        return cached
+
     styleProfile, storyPatterns, _, characterProfiles, _, _, _ = _getProfiles(
         retriever, userId, vectorStoreDir
     )
-    return _continueWriting(
+    result = _continueWriting(
         lastParagraph=lastParagraph,
         retriever=retriever,
         styleProfile=styleProfile,
         storyPatterns=storyPatterns,
         characterProfiles=characterProfiles,
     )
+    if result.get("continuation"):
+        saveGeneration(cacheDir, userId, fingerprint, lastParagraph, result, extra="continue")
+    return result
 
 
 def getUnstuck(

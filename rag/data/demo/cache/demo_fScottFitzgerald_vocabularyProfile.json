@@ -1,0 +1,12 @@
+{
+  "fingerprint": "9fef10d128899b39",
+  "data": {
+    "raw": "REGISTER: literary/formal\nCOMPLEXITY: elevated\nPET_WORDS: None notable\nDICTION: concrete (e.g., \"red-belted oceangoing ships\", \"cobbled slum\") \n       sensory (e.g., \"dark, undeserted saloons\")\nAVOIDANCES: colloquialisms",
+    "register": "literary/formal",
+    "complexity": "elevated",
+    "petWords": "None notable",
+    "diction": "concrete (e.g., \"red-belted oceangoing ships\", \"cobbled slum\")",
+    "avoidances": "colloquialisms"
+  },
+  "cachedAt": "2026-04-09T16:32:06.856904+00:00"
+}

@@ -1,0 +1,32 @@
+{
+  "fingerprint": "c06125e15d8e87c9",
+  "data": {
+    "sentenceLength": {
+      "avg": 17.1,
+      "min": 1,
+      "max": 68,
+      "distribution": {
+        "short": "50%",
+        "medium": "14%",
+        "long": "36%"
+      }
+    },
+    "paragraphLength": {
+      "avgSentences": 2.8,
+      "avgWords": 47.9
+    },
+    "dialogueRatio": 0.29,
+    "punctuationHabits": {
+      "emDash": 13,
+      "ellipsis": 0,
+      "semicolon": 12,
+      "exclamation": 1,
+      "question": 6
+    },
+    "sampleSize": {
+      "chunks": 15,
+      "sentences": 42
+    }
+  },
+  "cachedAt": "2026-04-09T08:56:37.720073+00:00"
+}

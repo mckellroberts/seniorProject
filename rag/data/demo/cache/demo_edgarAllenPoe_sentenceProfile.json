@@ -1,0 +1,8 @@
+{
+  "fingerprint": "8b3e2be2e2b54078",
+  "data": {
+    "error": "Ollama request failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)",
+    "raw": ""
+  },
+  "cachedAt": "2026-04-09T09:02:56.055393+00:00"
+}

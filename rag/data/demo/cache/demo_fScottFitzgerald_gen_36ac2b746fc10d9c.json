@@ -1,0 +1,67 @@
+{
+  "fingerprint": "9fef10d128899b39",
+  "result": {
+    "generatedText": "The candelabras stood like sentinels, their white tapers casting eerie silhouettes on the chandelier as they drifted lazily across the room. The laughter and music swirled around me, a maelstrom of sound that threatened to consume me whole. And yet, I felt suspended, a spectator in my own skin, as if observing this spectacle from behind a veil of curiosity.\n\nThe host, resplendent in his black tie, stood at the center of it all, a statuesque figure radiating an aura of calm detachment. His eyes moved with precision, surveying the throng with a detached interest that made me shiver. It was as if he were cataloging the guests, weighing their value, calculating the worth of each smile and laugh.\n\nTo my left, a flapper twirled to the rhythm of Duke Ellington's \"Mood Indigo,\" her beaded fringe gown sparkling like a constellation in the dim light. Her eyes locked onto mine for an instant, and I felt a jolt of recognition, as if we shared some secret joke that no one else understood. But when she broke eye contact, the connection was gone, leaving me to wonder if I'd imagined it altogether.\n\nMeanwhile, across the room, a group of revelers clustered around the bar, their faces illuminated by the soft glow of champagne glasses and their conversation a staccato of laughter and raised voices. They seemed to be competing in some sort of game, each trying to outdo the others with their wit and charm. But their joy was fleeting, like a sunrise on a cloudy day – it would burn itself out soon enough, leaving behind only ashes.\n\nThe host moved through this whirlwind of color and sound with an air of deliberate slowness, his movements as calculated as a chess player's. It was as if he were dancing to a different tune altogether, one that only he could hear. And I found myself drawn into the melody, my senses tuned to its rhythm, even as my mind whispered a dissonant note – that something here was off, that beneath this façade of opulence and excess, there lurked a void.\n\nIn the distance, a string quartet played a haunting melody, their notes echoing through the ballroom like whispers in the night. The music seemed to be seeping into my bones, a cold draft that left me shivering. I turned back to the host, searching for some sign of emotion, some glimmer of connection to this world of champagne toasts and jazz-age indulgence. But his face remained impassive, a mask of polished marble that reflected nothing but the calculated precision of the evening's festivities.\n\nAnd in that moment, I knew that I had stumbled into something more complex, more sinister than a simple party – I had entered a labyrinth where the unwary might lose themselves forever.",
+    "styleProfile": {
+      "sentences": {
+        "raw": "Here are the sentence-level patterns for each writing sample:\n\n---\n\n1. AVG_LENGTH: long — rough estimate 15-20 words per sentence\nRHYTHM: flowing — sentence length varies smoothly across a passage\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: yes — the author uses short, simple sentences to contrast with longer, more complex ones\nPATTERNS: None notable structural habits\n\n2. AVG_LENGTH: medium/long — rough estimate 12-18 words per sentence\nRHYTHM: varied — sentence length varies across a passage, but not in a consistent pattern\nCOMPLEXITY: compound/simple/mixed — clause structure is often simple or compound, but also complex sentences are present\nFRAGMENTS: occasional — short sentence fragments are used occasionally to add emphasis\nPATTERNS: Anaphora (\"what do you think of that?\", \"is this absolutely where you live\") \n\n3. AVG_LENGTH: medium/long — rough estimate 10-15 words per sentence\nRHYTHM: flowing — sentence length varies smoothly across a passage, but with some variation in phrase structure\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: no — the author does not use sentence fragments deliberately\nPATTERNS: None notable structural habits\n\n4. AVG_LENGTH: medium/long — rough estimate 10-15 words per sentence\nRHYTHM: varied — sentence length varies across a passage, with some shorter and longer sentences\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: no — the author does not use sentence fragments deliberately\nPATTERNS: Parallel structure (\"The lights grow brighter...\", \"Laughter is easier minute by minute\")",
+        "rhythm": "varied — sentence length varies across a passage, with some shorter and longer sentences",
+        "complexity": "complex/mixed — clause structure is often compound or complex, but also simple sentences are present",
+        "fragmentUse": "no — the author does not use sentence fragments deliberately",
+        "patterns": "Parallel structure (\"The lights grow brighter...\", \"Laughter is easier minute by minute\")"
+      },
+      "vocabulary": {
+        "raw": "REGISTER: literary/formal\nCOMPLEXITY: elevated\nPET_WORDS: None notable\nDICTION: concrete (e.g., \"red-belted oceangoing ships\", \"cobbled slum\") \n       sensory (e.g., \"dark, undeserted saloons\")\nAVOIDANCES: colloquialisms",
+        "register": "literary/formal",
+        "complexity": "elevated",
+        "petWords": "None notable",
+        "diction": "concrete (e.g., \"red-belted oceangoing ships\", \"cobbled slum\")",
+        "avoidances": "colloquialisms"
+      },
+      "tone": {
+        "raw": "PRIMARY_TONE: melancholic\nTONE_RANGE: narrow - the author primarily stays in one register of sadness and wistfulness.\nEMOTIONAL_DEPTH: deep - the author explores complex emotions and introspection.\nATMOSPHERIC_WORDS: words like \"shades\", \"echoes\", \"sadness\", \"regret\", and \"lingering\" create a melancholic atmosphere.\n\nTONE_SHIFTS: The tone shifts subtly, often through the use of descriptive language that evokes a sense of longing or loss. For example, when describing Myrtle Wilson's face, the author notes that her expression is \"curiously familiar—like objects into a slowly developing picture\", suggesting a sense of nostalgia and recognition.\n\nNote: The passage appears to be excerpts from F. Scott Fitzgerald's work, likely \"The Great Gatsby\".",
+        "primaryTone": "melancholic",
+        "toneRange": "narrow - the author primarily stays in one register of sadness and wistfulness.",
+        "emotionalDepth": "deep - the author explores complex emotions and introspection.",
+        "atmosphericWords": "words like \"shades\", \"echoes\", \"sadness\", \"regret\", and \"lingering\" create a melancholic atmosphere.",
+        "toneShifts": "The tone shifts subtly, often through the use of descriptive language that evokes a sense of longing or loss. For example, when describing Myrtle Wilson's face, the author notes that her expression is \"curiously familiar—like objects into a slowly developing picture\", suggesting a sense of nostalgia and recognition."
+      }
+    },
+    "storyPatterns": {
+      "error": "Ollama request failed: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=120)",
+      "raw": ""
+    },
+    "paragraphStats": {
+      "sentenceLength": {
+        "avg": 11.9,
+        "min": 2,
+        "max": 34,
+        "distribution": {
+          "short": "53%",
+          "medium": "33%",
+          "long": "14%"
+        }
+      },
+      "paragraphLength": {
+        "avgSentences": 3.3,
+        "avgWords": 38.9
+      },
+      "dialogueRatio": 0.69,
+      "punctuationHabits": {
+        "emDash": 4,
+        "ellipsis": 1,
+        "semicolon": 0,
+        "exclamation": 1,
+        "question": 15
+      },
+      "sampleSize": {
+        "chunks": 15,
+        "sentences": 49
+      }
+    },
+    "sourcesUsed": [
+      "pg64317.txt"
+    ]
+  },
+  "cachedAt": "2026-04-09T16:34:36.918284+00:00"
+}

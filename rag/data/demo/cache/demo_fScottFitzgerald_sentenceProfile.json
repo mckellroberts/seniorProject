@@ -1,0 +1,11 @@
+{
+  "fingerprint": "9fef10d128899b39",
+  "data": {
+    "raw": "Here are the sentence-level patterns for each writing sample:\n\n---\n\n1. AVG_LENGTH: long — rough estimate 15-20 words per sentence\nRHYTHM: flowing — sentence length varies smoothly across a passage\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: yes — the author uses short, simple sentences to contrast with longer, more complex ones\nPATTERNS: None notable structural habits\n\n2. AVG_LENGTH: medium/long — rough estimate 12-18 words per sentence\nRHYTHM: varied — sentence length varies across a passage, but not in a consistent pattern\nCOMPLEXITY: compound/simple/mixed — clause structure is often simple or compound, but also complex sentences are present\nFRAGMENTS: occasional — short sentence fragments are used occasionally to add emphasis\nPATTERNS: Anaphora (\"what do you think of that?\", \"is this absolutely where you live\") \n\n3. AVG_LENGTH: medium/long — rough estimate 10-15 words per sentence\nRHYTHM: flowing — sentence length varies smoothly across a passage, but with some variation in phrase structure\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: no — the author does not use sentence fragments deliberately\nPATTERNS: None notable structural habits\n\n4. AVG_LENGTH: medium/long — rough estimate 10-15 words per sentence\nRHYTHM: varied — sentence length varies across a passage, with some shorter and longer sentences\nCOMPLEXITY: complex/mixed — clause structure is often compound or complex, but also simple sentences are present\nFRAGMENTS: no — the author does not use sentence fragments deliberately\nPATTERNS: Parallel structure (\"The lights grow brighter...\", \"Laughter is easier minute by minute\")",
+    "rhythm": "varied — sentence length varies across a passage, with some shorter and longer sentences",
+    "complexity": "complex/mixed — clause structure is often compound or complex, but also simple sentences are present",
+    "fragmentUse": "no — the author does not use sentence fragments deliberately",
+    "patterns": "Parallel structure (\"The lights grow brighter...\", \"Laughter is easier minute by minute\")"
+  },
+  "cachedAt": "2026-04-09T16:32:48.947524+00:00"
+}
