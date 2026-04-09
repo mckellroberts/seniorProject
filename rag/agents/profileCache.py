@@ -1,15 +1,16 @@
 """
 Profile Cache
-Persists style profiles and story patterns per user so they don't need
-to be re-analyzed on every generation request.
+Persists each analysis profile independently so a stale or missing profile
+only triggers re-analysis for that one agent, not the full set.
 
-Invalidation strategy: compare the number of chunks currently in the
-vector store against what was recorded when the cache was written.
-Any upload or deletion changes the count, which busts the cache.
+Fingerprint strategy: SHA-256 of (docCount + sorted source filenames).
+This catches both count changes and delete-then-reupload scenarios where
+the count stays the same but the content changes.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,79 +18,79 @@ from pathlib import Path
 CACHE_DIR_NAME = "cache"
 
 
-def _cachePath(cacheDir: Path, userId: str) -> Path:
-    return cacheDir / f"{userId}_profile.json"
+# ── Fingerprint ───────────────────────────────────────────────────────────────
 
-
-def loadCache(cacheDir: Path, userId: str, currentDocCount: int) -> dict | None:
+def computeFingerprint(docCount: int, sources: list[str]) -> str:
     """
-    Return cached profiles if they are still valid, otherwise None.
+    Return a short hash representing the current state of a user's document
+    collection. Used to detect when any profile cache is stale.
+    """
+    raw = f"{docCount}:{':'.join(sorted(sources))}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+# ── Per-profile cache ─────────────────────────────────────────────────────────
+
+def _profilePath(cacheDir: Path, userId: str, profileKey: str) -> Path:
+    return cacheDir / f"{userId}_{profileKey}.json"
+
+
+def loadProfile(cacheDir: Path, userId: str, fingerprint: str, profileKey: str) -> dict | None:
+    """
+    Return cached profile data if the fingerprint still matches, else None.
 
     Args:
-        cacheDir:        Directory where cache files are stored.
-        userId:          User whose cache to load.
-        currentDocCount: Current number of chunks in the vector store.
-
-    Returns:
-        dict with keys styleProfile, storyPatterns — or None if stale/missing.
+        cacheDir:    Directory where cache files are stored.
+        userId:      Owner of the cache.
+        fingerprint: Current document fingerprint from computeFingerprint().
+        profileKey:  Which profile to load (e.g. "sentenceProfile").
     """
-    path = _cachePath(cacheDir, userId)
+    path = _profilePath(cacheDir, userId, profileKey)
     if not path.exists():
         return None
-
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
-
-    if data.get("docCount") != currentDocCount:
+    if data.get("fingerprint") != fingerprint:
         return None
-
-    return {
-        "styleProfile":   data["styleProfile"],
-        "storyPatterns":  data["storyPatterns"],
-        "paragraphStats": data["paragraphStats"],
-    }
+    return data.get("data")
 
 
-def saveCache(
+def saveProfile(
     cacheDir: Path,
     userId: str,
-    styleProfile: dict,
-    storyPatterns: dict,
-    paragraphStats: dict,
-    currentDocCount: int,
+    fingerprint: str,
+    profileKey: str,
+    data: dict,
 ) -> None:
     """
-    Write profiles to disk.
+    Persist a single profile to disk.
 
     Args:
-        cacheDir:        Directory where cache files are stored.
-        userId:          User whose cache to write.
-        styleProfile:    Output from analyzeStyle.
-        storyPatterns:   Output from detectStoryPatterns.
-        paragraphStats:  Output from analyzeParagraphs.
-        currentDocCount: Number of chunks in the vector store right now.
+        cacheDir:    Directory where cache files are stored.
+        userId:      Owner of the cache.
+        fingerprint: Document fingerprint at time of analysis.
+        profileKey:  Which profile to store (e.g. "sentenceProfile").
+        data:        The profile dict returned by the analysis agent.
     """
     cacheDir.mkdir(parents=True, exist_ok=True)
-    data = {
-        "styleProfile":   styleProfile,
-        "storyPatterns":  storyPatterns,
-        "paragraphStats": paragraphStats,
-        "docCount":       currentDocCount,
-        "cachedAt":       datetime.now(timezone.utc).isoformat(),
+    payload = {
+        "fingerprint": fingerprint,
+        "data":        data,
+        "cachedAt":    datetime.now(timezone.utc).isoformat(),
     }
-    _cachePath(cacheDir, userId).write_text(
-        json.dumps(data, indent=2, ensure_ascii=False),
+    _profilePath(cacheDir, userId, profileKey).write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
 
 
-def invalidateCache(cacheDir: Path, userId: str) -> None:
-    """
-    Explicitly delete a user's cache file.
-    Useful if you ever need to force a re-analysis without changing doc count.
-    """
-    path = _cachePath(cacheDir, userId)
-    if path.exists():
+def invalidateUser(cacheDir: Path, userId: str) -> None:
+    """Delete all cached profiles for a user."""
+    for path in cacheDir.glob(f"{userId}_*.json"):
         path.unlink()
+
+
+# Back-compat alias used by older code paths
+invalidateCache = invalidateUser

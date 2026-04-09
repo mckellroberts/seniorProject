@@ -38,7 +38,8 @@ def generateIdeas(
     themeSamples  = "\n\n---\n\n".join(r["document"] for r in themeResults)
 
     if not styleSamples:
-        return {"error": "No writing samples found. Please upload some of your work first."}
+        return {"error": "No writing samples found. Please upload some of your work first.",
+                "ideas": [], "ideaCount": 0, "topic": topic or "open", "raw": ""}
 
     topicLine = f"The ideas should relate to or explore: {topic}\n" if topic else ""
 
@@ -55,12 +56,17 @@ def generateIdeas(
         f"THEME SAMPLES:\n{themeSamples}"
     )
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={"model": OLLAMA_MODEL, "prompt": ideaPrompt, "stream": False},
-    )
-    response.raise_for_status()
-    raw = response.json().get("response", "").strip()
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": ideaPrompt, "stream": False},
+            timeout=120,
+        )
+        response.raise_for_status()
+        raw = response.json().get("response", "").strip()
+    except requests.RequestException as e:
+        return {"error": f"Ollama request failed: {e}",
+                "ideas": [], "ideaCount": 0, "topic": topic or "open", "raw": ""}
 
     # Parse ideas out of the structured response
     ideas = []

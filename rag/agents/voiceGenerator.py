@@ -49,12 +49,29 @@ def generateInVoice(
             "sourcesUsed": [],
         }
 
-    # 2. Build the system prompt from the style and story analysis
-    styleSummary  = styleProfile.get("summary", styleProfile.get("raw", ""))
-    sentenceStyle = styleProfile.get("sentenceStyle", "")
-    vocabulary    = styleProfile.get("vocabulary", "")
-    tone          = styleProfile.get("tone", "")
-    habits        = styleProfile.get("distinctiveHabits", "")
+    # 2. Build the system prompt from the style and story analysis.
+    # styleProfile is a nested dict with keys: sentences, vocabulary, tone.
+    sentenceSection   = styleProfile.get("sentences", {})
+    vocabularySection = styleProfile.get("vocabulary", {})
+    toneSection       = styleProfile.get("tone", {})
+
+    sentenceStyle = (
+        sentenceSection.get("rhythm", sentenceSection.get("raw", ""))
+        if isinstance(sentenceSection, dict) else str(sentenceSection)
+    )
+    vocabulary = (
+        vocabularySection.get("register", vocabularySection.get("raw", ""))
+        if isinstance(vocabularySection, dict) else str(vocabularySection)
+    )
+    tone = (
+        toneSection.get("primaryTone", toneSection.get("raw", ""))
+        if isinstance(toneSection, dict) else str(toneSection)
+    )
+    habits = (
+        sentenceSection.get("patterns", "")
+        if isinstance(sentenceSection, dict) else ""
+    )
+    styleSummary = f"Sentences: {sentenceStyle} | Vocabulary: {vocabulary} | Tone: {tone}"
 
     arcType       = storyPatterns.get("arcType", "")
     pacing        = storyPatterns.get("pacing", "")
@@ -81,18 +98,16 @@ def generateInVoice(
     if styleHint:
         userMessage += f"\nAdditional guidance from the author: {styleHint}"
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model":  OLLAMA_MODEL,
-            "prompt": userMessage,
-            "system": systemPrompt,
-            "stream": False,
-        },
-    )
-    response.raise_for_status()
-
-    return {
-        "generatedText": response.json().get("response", "").strip(),
-        "sourcesUsed":   sources,
-    }
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": userMessage, "system": systemPrompt, "stream": False},
+            timeout=120,
+        )
+        response.raise_for_status()
+        return {
+            "generatedText": response.json().get("response", "").strip(),
+            "sourcesUsed":   sources,
+        }
+    except requests.RequestException as e:
+        return {"error": f"Ollama request failed: {e}", "generatedText": None, "sourcesUsed": []}

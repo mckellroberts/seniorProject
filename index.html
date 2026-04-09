@@ -577,6 +577,28 @@
     .idea-hook { font-size: 0.82rem; color: var(--soft); margin-bottom: 0.2rem; }
     .idea-fit { font-size: 0.78rem; color: var(--muted); font-style: italic; }
 
+    .suggestion-card { display: flex; gap: 0.75rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; animation: slideIn 0.2s ease; }
+    .suggestion-num { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); font-weight: 700; flex-shrink: 0; width: 1.2rem; margin-top: 0.15rem; }
+    .suggestion-body { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
+    .suggestion-text { font-size: 0.9rem; color: var(--text); line-height: 1.55; }
+    .suggestion-root { font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono); }
+    .suggestion-fit { font-size: 0.75rem; color: var(--muted); font-style: italic; }
+
+    .modal-field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .modal-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .modal-label span { color: var(--accent); }
+    .modal-input, .modal-textarea {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text); font-family: var(--font-sans); font-size: 0.88rem;
+      padding: 0.45rem 0.75rem; outline: none; width: 100%;
+      transition: border-color 0.15s;
+    }
+    .modal-input::placeholder, .modal-textarea::placeholder { color: #444; }
+    .modal-input:focus, .modal-textarea:focus { border-color: var(--accent-border); }
+    .modal-textarea { resize: none; line-height: 1.4; padding: 0.5rem 0.75rem; }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .modal-fields { display: flex; flex-direction: column; gap: 0.75rem; }
+
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
@@ -622,6 +644,22 @@
         <span class="nav-icon">✦</span>
         <span class="nav-label">Writing Ideas</span>
       </button>
+      <button class="nav-item" onclick="continueFromDraft()" title="Continue Writing">
+        <span class="nav-icon">→</span>
+        <span class="nav-label">Continue Writing</span>
+      </button>
+      <button class="nav-item" onclick="openModal('unstuck')" title="I'm Stuck">
+        <span class="nav-icon">⊘</span>
+        <span class="nav-label">I'm Stuck</span>
+      </button>
+      <button class="nav-item" onclick="openModal('scene')" title="Write a Scene">
+        <span class="nav-icon">◻</span>
+        <span class="nav-label">Write a Scene</span>
+      </button>
+      <button class="nav-item" onclick="openModal('dialogue')" title="Write Dialogue">
+        <span class="nav-icon">❝</span>
+        <span class="nav-label">Write Dialogue</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -662,6 +700,7 @@
               <button class="doc-tab" onclick="showDocTab('generated', this)" id="genTabBtn">Generated</button>
             </div>
             <div class="doc-paper-actions">
+              <button class="doc-action-btn" id="continueBtn" onclick="continueFromDraft()">Continue →</button>
               <button class="doc-action-btn" id="insertBtn" style="display:none" onclick="insertGenerated()">← Insert</button>
               <button class="doc-action-btn" id="copyBtn"   style="display:none" onclick="copyGenerated()">Copy</button>
             </div>
@@ -786,6 +825,83 @@
       </div>
       <div class="ideas-list" id="ideasList"></div>
       <div class="status" id="ideasStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── Unstuck Modal ───────────────────────────────────────────────────── -->
+  <div class="overlay" id="unstuckOverlay" onclick="closeModal('unstuck')">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">I'm Stuck</span>
+        <button class="modal-close" onclick="closeModal('unstuck')">✕</button>
+      </div>
+      <p class="modal-sub">Story-grounded suggestions for what could happen next</p>
+      <div class="ideas-controls">
+        <input type="text" id="unstuckContext" class="modal-input" placeholder="Optional: describe where you're stuck..." />
+        <select id="unstuckCount" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:0.45rem 0.6rem;outline:none;font-size:0.85rem;cursor:pointer;">
+          <option value="3">3 ideas</option>
+          <option value="5">5 ideas</option>
+        </select>
+        <button class="modal-btn modal-btn-sm" id="unstuckBtn" onclick="fetchUnstuck()">Get Unstuck</button>
+      </div>
+      <div class="ideas-list" id="unstuckList"></div>
+      <div class="status" id="unstuckStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── Scene Modal ──────────────────────────────────────────────────────── -->
+  <div class="overlay" id="sceneOverlay" onclick="closeModal('scene')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Write a Scene</span>
+        <button class="modal-close" onclick="closeModal('scene')">✕</button>
+      </div>
+      <p class="modal-sub">Draft a scene in your voice with specific parameters</p>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label class="modal-label">What happens <span>*</span></label>
+          <textarea id="scenePrompt" class="modal-textarea" rows="2" placeholder="e.g. Elena discovers the letter in the drawer"></textarea>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Characters (comma-separated)</label>
+          <input type="text" id="sceneCharacters" class="modal-input" placeholder="e.g. Elena, Marcus" />
+        </div>
+        <div class="modal-row">
+          <div class="modal-field">
+            <label class="modal-label">Location</label>
+            <input type="text" id="sceneLocation" class="modal-input" placeholder="e.g. the old library" />
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">Mood</label>
+            <input type="text" id="sceneMood" class="modal-input" placeholder="e.g. tense, melancholic" />
+          </div>
+        </div>
+      </div>
+      <button class="modal-btn" id="sceneBtn" onclick="fetchScene()">Draft Scene</button>
+      <div class="status" id="sceneStatus"></div>
+    </div>
+  </div>
+
+  <!-- ── Dialogue Modal ──────────────────────────────────────────────────── -->
+  <div class="overlay" id="dialogueOverlay" onclick="closeModal('dialogue')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Write Dialogue</span>
+        <button class="modal-close" onclick="closeModal('dialogue')">✕</button>
+      </div>
+      <p class="modal-sub">Write dialogue between characters in your voice</p>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label class="modal-label">Situation &amp; context <span>*</span></label>
+          <textarea id="dialogueContext" class="modal-textarea" rows="2" placeholder="e.g. Marcus confronts Elena about the letter"></textarea>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Characters speaking (comma-separated)</label>
+          <input type="text" id="dialogueCharacters" class="modal-input" placeholder="e.g. Marcus, Elena" />
+        </div>
+      </div>
+      <button class="modal-btn" id="dialogueBtn" onclick="fetchDialogue()">Write Dialogue</button>
+      <div class="status" id="dialogueStatus"></div>
     </div>
   </div>
 
@@ -1010,7 +1126,7 @@
       document.getElementById(`${name}Overlay`).classList.remove('open');
     }
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') ['upload','works','style','ideas'].forEach(closeModal);
+      if (e.key === 'Escape') ['upload','works','style','ideas','unstuck','scene','dialogue'].forEach(closeModal);
     });
 
     // ── Upload ───────────────────────────────────────────────────────────
@@ -1117,13 +1233,25 @@
         const data = await res.json();
         if (!res.ok) { content.innerHTML = `<span class="loading-hint">${data.error || 'Could not load style profile.'}</span>`; return; }
         const p = data.styleProfile || {};
+        // styleProfile is nested: { sentences: {...}, vocabulary: {...}, tone: {...} }
+        const sentences  = p.sentences  || {};
+        const vocabulary = p.vocabulary || {};
+        const tone       = p.tone       || {};
         content.innerHTML = '';
         [
-          { label: 'Summary',            value: p.summary },
-          { label: 'Sentence Style',     value: p.sentenceStyle },
-          { label: 'Vocabulary',         value: p.vocabulary },
-          { label: 'Tone',               value: p.tone },
-          { label: 'Distinctive Habits', value: p.distinctiveHabits },
+          { label: 'Sentence Rhythm',    value: sentences.rhythm    || sentences.raw },
+          { label: 'Sentence Complexity',value: sentences.complexity },
+          { label: 'Fragment Use',       value: sentences.fragmentUse },
+          { label: 'Structural Patterns',value: sentences.patterns },
+          { label: 'Vocabulary Register',value: vocabulary.register },
+          { label: 'Word Complexity',    value: vocabulary.complexity },
+          { label: 'Pet Words & Diction',value: vocabulary.petWords  ? `${vocabulary.petWords} — ${vocabulary.diction || ''}` : vocabulary.diction },
+          { label: 'Avoidances',         value: vocabulary.avoidances },
+          { label: 'Primary Tone',       value: tone.primaryTone },
+          { label: 'Tone Range',         value: tone.toneRange },
+          { label: 'Emotional Depth',    value: tone.emotionalDepth },
+          { label: 'Atmospheric Words',  value: tone.atmosphericWords },
+          { label: 'Tone Shifts',        value: tone.toneShifts },
         ].forEach(({ label, value }) => {
           if (!value) return;
           const sec = document.createElement('div');
@@ -1182,6 +1310,125 @@
           list.appendChild(card);
         });
       } catch { showStatus(status, 'error', 'Network error — is the server running?'); }
+    }
+
+    // ── Continue Writing ──────────────────────────────────────────────────
+    async function continueFromDraft() {
+      const draft = document.getElementById('draftArea').value;
+      if (!draft.trim()) {
+        alert('Write something in the draft first, then use Continue to extend it.');
+        return;
+      }
+      // Take the last ~600 characters as the "last paragraph" for context
+      const lastParagraph = draft.slice(-600).trim();
+      const btn = document.getElementById('continueBtn');
+      btn.disabled = true; btn.textContent = '...';
+      setGeneratedContent(null, true);
+      try {
+        const res = await fetch('/continue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lastParagraph }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) setGeneratedContent(`Error: ${data.error || 'Failed'}`);
+        else setGeneratedContent(data.continuation || '');
+      } catch {
+        setGeneratedContent('Network error — is the server running?');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Continue →';
+      }
+    }
+
+    // ── I'm Stuck ─────────────────────────────────────────────────────────
+    async function fetchUnstuck() {
+      const context = document.getElementById('unstuckContext').value.trim();
+      const count   = parseInt(document.getElementById('unstuckCount').value) || 3;
+      const list    = document.getElementById('unstuckList');
+      const status  = document.getElementById('unstuckStatus');
+      const btn     = document.getElementById('unstuckBtn');
+      list.innerHTML = '<span class="loading-hint">Finding your way forward...</span>';
+      status.className = 'status';
+      btn.disabled = true; btn.textContent = '...';
+      try {
+        const res = await fetch('/unstuck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context, count }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          showStatus(status, 'error', data.error || 'Failed to get suggestions');
+          list.innerHTML = '';
+          return;
+        }
+        const suggestions = data.suggestions || [];
+        if (!suggestions.length) { list.innerHTML = '<span class="loading-hint">No suggestions returned. Try uploading more writing samples.</span>'; return; }
+        list.innerHTML = '';
+        suggestions.forEach((s, i) => {
+          const card = document.createElement('div');
+          card.className = 'suggestion-card';
+          card.innerHTML = `<div class="suggestion-num">${i + 1}</div><div class="suggestion-body"><div class="suggestion-text">${s.suggestion || ''}</div>${s.rootedIn ? `<div class="suggestion-root">↳ Rooted in: ${s.rootedIn}</div>` : ''}${s.fitsBecause ? `<div class="suggestion-fit">${s.fitsBecause}</div>` : ''}</div>`;
+          list.appendChild(card);
+        });
+      } catch {
+        showStatus(status, 'error', 'Network error — is the server running?');
+        list.innerHTML = '';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Get Unstuck';
+      }
+    }
+
+    // ── Write a Scene ─────────────────────────────────────────────────────
+    async function fetchScene() {
+      const prompt = document.getElementById('scenePrompt').value.trim();
+      const status = document.getElementById('sceneStatus');
+      if (!prompt) { showStatus(status, 'error', 'Scene description is required'); return; }
+      const characters = document.getElementById('sceneCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
+      const location   = document.getElementById('sceneLocation').value.trim();
+      const mood       = document.getElementById('sceneMood').value.trim();
+      const btn = document.getElementById('sceneBtn');
+      btn.disabled = true; btn.textContent = 'Drafting...';
+      status.className = 'status';
+      try {
+        const res = await fetch('/scene', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, characters: characters.length ? characters : undefined, location, mood }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to draft scene'); }
+        else { closeModal('scene'); setGeneratedContent(data.scene || ''); }
+      } catch {
+        showStatus(status, 'error', 'Network error — is the server running?');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Draft Scene';
+      }
+    }
+
+    // ── Write Dialogue ────────────────────────────────────────────────────
+    async function fetchDialogue() {
+      const context = document.getElementById('dialogueContext').value.trim();
+      const status  = document.getElementById('dialogueStatus');
+      if (!context) { showStatus(status, 'error', 'Context is required'); return; }
+      const characters = document.getElementById('dialogueCharacters').value.split(',').map(s => s.trim()).filter(Boolean);
+      const btn = document.getElementById('dialogueBtn');
+      btn.disabled = true; btn.textContent = 'Writing...';
+      status.className = 'status';
+      try {
+        const res = await fetch('/dialogue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context, characters: characters.length ? characters : undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { showStatus(status, 'error', data.error || 'Failed to write dialogue'); }
+        else { closeModal('dialogue'); setGeneratedContent(data.dialogue || ''); }
+      } catch {
+        showStatus(status, 'error', 'Network error — is the server running?');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Write Dialogue';
+      }
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────

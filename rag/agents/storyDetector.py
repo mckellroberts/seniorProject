@@ -2,6 +2,9 @@
 Story Detector Agent
 Analyzes the user's uploaded writing to identify narrative patterns,
 story arc preferences, common themes, and structural habits.
+
+Response shape (success): { arcType, themes, pacing, conflictStyle, narrativePOV, raw }
+Response shape (error):   { error, raw }
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ def detectStoryPatterns(retriever: ChromaRetriever) -> dict:
             samples.append(r["document"])
 
     if not samples:
-        return {"error": "No writing samples found. Please upload some of your work first."}
+        return {"error": "No writing samples found. Please upload some of your work first.", "raw": ""}
 
     # Deduplicate while preserving order
     seen = set()
@@ -60,12 +63,16 @@ def detectStoryPatterns(retriever: ChromaRetriever) -> dict:
         f"WRITING SAMPLES:\n{combinedText}"
     )
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={"model": OLLAMA_MODEL, "prompt": detectionPrompt, "stream": False},
-    )
-    response.raise_for_status()
-    raw = response.json().get("response", "").strip()
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": detectionPrompt, "stream": False},
+            timeout=120,
+        )
+        response.raise_for_status()
+        raw = response.json().get("response", "").strip()
+    except requests.RequestException as e:
+        return {"error": f"Ollama request failed: {e}", "raw": ""}
 
     patterns = {"raw": raw}
     for line in raw.splitlines():

@@ -1,55 +1,147 @@
 """
-Writing agent — generates text in the user's voice using RAG over their uploads.
-Uses Ollama locally (no API key, no data leaves the machine).
+Writing Agent — orchestrator
+Routes requests to the appropriate specialized sub-agent and manages the
+per-profile cache so only stale or missing analyses are re-run.
+Uncached analyses are executed concurrently.
 """
 
 from __future__ import annotations
 
-import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from ..tools.vectorStore import ChromaRetriever
-from .styleAnalyzer import analyzeStyle
-from .storyDetector import detectStoryPatterns
-from .ideaGenerator import generateIdeas
-from .voiceGenerator import generateInVoice
-from .profileCache import loadCache, saveCache
-from .paragraphAnalyzer import analyzeParagraphs
 
-# Cache lives alongside the other data directories
+from ..tools.vectorStore import ChromaRetriever
+
+# Analysis agents
+from .sentenceAnalyzer   import analyzeSentences
+from .vocabularyAnalyzer import analyzeVocabulary
+from .toneAnalyzer       import analyzeTone
+from .storyDetector      import detectStoryPatterns
+from .characterProfiler  import profileCharacters
+from .plotTracker        import trackPlot
+from .paragraphAnalyzer  import analyzeParagraphs
+
+# Generation agents
+from .voiceGenerator    import generateInVoice
+from .ideaGenerator     import generateIdeas
+from .stuckAgent        import getUnstuckSuggestions
+from .continuationAgent import continueWriting as _continueWriting
+from .sceneAgent        import draftScene as _draftScene
+from .dialogueAgent     import writeDialogue as _writeDialogue
+
+# Cache
+from .profileCache import computeFingerprint, loadProfile, saveProfile
+
 _CACHE_DIR_NAME = "cache"
 
+# Maps cache key → analysis function. Order doesn't matter; they run concurrently.
+_ANALYSIS_AGENTS: list[tuple[str, callable]] = [
+    ("sentenceProfile",   analyzeSentences),
+    ("vocabularyProfile", analyzeVocabulary),
+    ("toneProfile",       analyzeTone),
+    ("storyPatterns",     detectStoryPatterns),
+    ("paragraphStats",    analyzeParagraphs),
+    ("characterProfiles", profileCharacters),
+    ("plotSummary",       trackPlot),
+]
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _cacheDir(vectorStoreDir: Path) -> Path:
     return vectorStoreDir.parent / _CACHE_DIR_NAME
 
 
-def _getProfiles(retriever: ChromaRetriever, userId: str, vectorStoreDir: Path) -> tuple[dict, dict, dict]:
-    """
-    Return (styleProfile, storyPatterns, paragraphStats), pulling from cache when valid.
-    Runs all three analyses and writes a fresh cache when the cache is stale or missing.
-    """
-    docCount = retriever.count()
-    cached = loadCache(_cacheDir(vectorStoreDir), userId, docCount)
-    if cached:
-        return cached["styleProfile"], cached["storyPatterns"], cached["paragraphStats"]
-
-    styleProfile   = analyzeStyle(retriever)
-    storyPatterns  = detectStoryPatterns(retriever)
-    paragraphStats = analyzeParagraphs(retriever)
-    saveCache(_cacheDir(vectorStoreDir), userId, styleProfile, storyPatterns, paragraphStats, docCount)
-    return styleProfile, storyPatterns, paragraphStats
+def _assembleStyleProfile(sentenceProfile: dict, vocabularyProfile: dict, toneProfile: dict) -> dict:
+    return {
+        "sentences":  sentenceProfile,
+        "vocabulary": vocabularyProfile,
+        "tone":       toneProfile,
+    }
 
 
-def buildStyleProfile(retriever: ChromaRetriever, userId: str = "default", vectorStoreDir: Path | None = None) -> dict:
+def _getProfiles(
+    retriever: ChromaRetriever,
+    userId: str,
+    vectorStoreDir: Path,
+) -> tuple[dict, dict, dict, dict, dict, dict, dict]:
     """
-    Convenience wrapper — returns the full style profile dict.
-    Called directly from the /styleProfile Flask route.
-    Uses cache when available.
+    Return all seven analysis profiles.
+
+    Each profile is loaded from cache individually. Only profiles whose
+    fingerprint has changed (or was never cached) are re-run, and those
+    are executed concurrently via a thread pool.
+
+    Returns:
+        (styleProfile, storyPatterns, paragraphStats, characterProfiles,
+         plotSummary, sentenceProfile, vocabularyProfile)
     """
+    docCount    = retriever.count()
+    sources     = retriever.listSources()
+    fingerprint = computeFingerprint(docCount, sources)
+    cacheDir    = _cacheDir(vectorStoreDir)
+
+    # Load whatever is already cached
+    cached: dict[str, dict] = {}
+    missing: list[tuple[str, callable]] = []
+
+    for key, fn in _ANALYSIS_AGENTS:
+        profile = loadProfile(cacheDir, userId, fingerprint, key)
+        if profile is not None:
+            cached[key] = profile
+        else:
+            missing.append((key, fn))
+
+    # Run only missing analyses, concurrently
+    if missing:
+        with ThreadPoolExecutor(max_workers=len(missing)) as pool:
+            futures = {pool.submit(fn, retriever): key for key, fn in missing}
+            for future in as_completed(futures):
+                key  = futures[future]
+                data = future.result()
+                cached[key] = data
+                saveProfile(cacheDir, userId, fingerprint, key, data)
+
+    styleProfile = _assembleStyleProfile(
+        cached["sentenceProfile"],
+        cached["vocabularyProfile"],
+        cached["toneProfile"],
+    )
+    return (
+        styleProfile,
+        cached["storyPatterns"],
+        cached["paragraphStats"],
+        cached["characterProfiles"],
+        cached["plotSummary"],
+        cached["sentenceProfile"],
+        cached["vocabularyProfile"],
+    )
+
+
+def _requireRetriever(userId: str, vectorStoreDir: Path) -> ChromaRetriever | None:
+    retriever = ChromaRetriever(persistDirectory=vectorStoreDir, userId=userId)
+    return retriever if retriever.count() > 0 else None
+
+
+_NO_SAMPLES = {"error": "No writing samples uploaded yet. Please upload some of your work first."}
+
+
+# ── Public entry points ───────────────────────────────────────────────────────
+
+def buildStyleProfile(
+    retriever: ChromaRetriever,
+    userId: str = "default",
+    vectorStoreDir: Path | None = None,
+) -> dict:
+    """Return the full style profile. Called from the /styleProfile Flask route."""
     if vectorStoreDir is not None:
-        styleProfile, _, _ = _getProfiles(retriever, userId, vectorStoreDir)
+        styleProfile, _, _, _, _, _, _ = _getProfiles(retriever, userId, vectorStoreDir)
         return styleProfile
-    return analyzeStyle(retriever)
+    return _assembleStyleProfile(
+        analyzeSentences(retriever),
+        analyzeVocabulary(retriever),
+        analyzeTone(retriever),
+    )
 
 
 def generateInUserVoice(
@@ -58,37 +150,15 @@ def generateInUserVoice(
     vectorStoreDir: Path,
     styleHint: str = "",
 ) -> dict:
-    """
-    Main entry point called from Flask /generate.
-    Runs all four sub-agents in sequence and returns the final generated text.
+    """General-purpose generation in the user's voice. Called from Flask /generate."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "generatedText": None, "styleProfile": None,
+                "storyPatterns": None, "sourcesUsed": []}
 
-    Args:
-        prompt:         What the user wants written.
-        userId:         Used to look up their personal ChromaDB collection.
-        vectorStoreDir: Path to ChromaDB storage.
-        styleHint:      Optional freeform style instruction from the user.
-
-    Returns:
-        dict with keys: generatedText, styleProfile, storyPatterns, sourcesUsed
-    """
-    retriever = ChromaRetriever(
-        persistDirectory=vectorStoreDir,
-        userId=userId,
+    styleProfile, storyPatterns, paragraphStats, _, _, _, _ = _getProfiles(
+        retriever, userId, vectorStoreDir
     )
-
-    if retriever.count() == 0:
-        return {
-            "error": "No writing samples uploaded yet. Please upload some of your work first.",
-            "generatedText": None,
-            "styleProfile":  None,
-            "storyPatterns": None,
-            "sourcesUsed":   [],
-        }
-
-    # 1, 2 & 3. Get profiles (from cache if available)
-    styleProfile, storyPatterns, paragraphStats = _getProfiles(retriever, userId, vectorStoreDir)
-
-    # 3. Generate text using both profiles as context
     generation = generateInVoice(
         prompt=prompt,
         retriever=retriever,
@@ -96,14 +166,108 @@ def generateInUserVoice(
         storyPatterns=storyPatterns,
         styleHint=styleHint,
     )
-
     return {
         "generatedText":  generation.get("generatedText"),
         "styleProfile":   styleProfile,
         "storyPatterns":  storyPatterns,
         "paragraphStats": paragraphStats,
         "sourcesUsed":    generation.get("sourcesUsed", []),
+        **({ "error": generation["error"] } if "error" in generation else {}),
     }
+
+
+def continueWriting(lastParagraph: str, userId: str, vectorStoreDir: Path) -> dict:
+    """Continue the story from the writer's last paragraph. Called from Flask /continue."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "continuation": None, "sourcesUsed": []}
+
+    styleProfile, storyPatterns, _, characterProfiles, _, _, _ = _getProfiles(
+        retriever, userId, vectorStoreDir
+    )
+    return _continueWriting(
+        lastParagraph=lastParagraph,
+        retriever=retriever,
+        styleProfile=styleProfile,
+        storyPatterns=storyPatterns,
+        characterProfiles=characterProfiles,
+    )
+
+
+def getUnstuck(
+    userId: str,
+    vectorStoreDir: Path,
+    context: str = "",
+    count: int = 3,
+) -> dict:
+    """Return story-grounded suggestions for a stuck writer. Called from Flask /unstuck."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "suggestions": [], "suggestionCount": 0}
+
+    styleProfile, storyPatterns, _, characterProfiles, plotSummary, _, _ = _getProfiles(
+        retriever, userId, vectorStoreDir
+    )
+    return getUnstuckSuggestions(
+        retriever=retriever,
+        styleProfile=styleProfile,
+        storyPatterns=storyPatterns,
+        characterProfiles=characterProfiles,
+        plotSummary=plotSummary,
+        context=context,
+        count=count,
+    )
+
+
+def writeScene(
+    prompt: str,
+    userId: str,
+    vectorStoreDir: Path,
+    characters: list[str] | None = None,
+    location: str = "",
+    mood: str = "",
+) -> dict:
+    """Draft a scene in the author's voice. Called from Flask /scene."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "scene": None, "sourcesUsed": []}
+
+    styleProfile, storyPatterns, _, characterProfiles, _, _, _ = _getProfiles(
+        retriever, userId, vectorStoreDir
+    )
+    return _draftScene(
+        prompt=prompt,
+        retriever=retriever,
+        styleProfile=styleProfile,
+        storyPatterns=storyPatterns,
+        characterProfiles=characterProfiles,
+        characters=characters,
+        location=location,
+        mood=mood,
+    )
+
+
+def writeDialogue(
+    context: str,
+    userId: str,
+    vectorStoreDir: Path,
+    characters: list[str] | None = None,
+) -> dict:
+    """Write dialogue between characters in the author's voice. Called from Flask /dialogue."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "dialogue": None, "sourcesUsed": []}
+
+    styleProfile, _, _, characterProfiles, _, _, _ = _getProfiles(
+        retriever, userId, vectorStoreDir
+    )
+    return _writeDialogue(
+        context=context,
+        retriever=retriever,
+        styleProfile=styleProfile,
+        characterProfiles=characterProfiles,
+        characters=characters,
+    )
 
 
 def getWritingIdeas(
@@ -112,16 +276,9 @@ def getWritingIdeas(
     topic: str = "",
     count: int = 5,
 ) -> dict:
-    """
-    Entry point for the /ideas Flask route.
-    Returns story ideas tailored to the user's style.
-    """
-    retriever = ChromaRetriever(
-        persistDirectory=vectorStoreDir,
-        userId=userId,
-    )
-
-    if retriever.count() == 0:
-        return {"error": "No writing samples uploaded yet. Please upload some of your work first."}
+    """Return story ideas tailored to the user's style. Called from Flask /ideas."""
+    retriever = _requireRetriever(userId, vectorStoreDir)
+    if retriever is None:
+        return {**_NO_SAMPLES, "ideas": [], "ideaCount": 0}
 
     return generateIdeas(retriever=retriever, topic=topic, count=count)

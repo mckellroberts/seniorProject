@@ -7,7 +7,14 @@ from flask_login import LoginManager, login_required, current_user
 
 from rag.tools.ingestDocs import ingestForUser, SUPPORTED_EXTENSIONS
 from rag.tools.vectorStore import ChromaRetriever
-from rag.agents.agent import generateInUserVoice, getWritingIdeas
+from rag.agents.agent import (
+    generateInUserVoice,
+    getWritingIdeas,
+    continueWriting,
+    getUnstuck,
+    writeScene,
+    writeDialogue,
+)
 from auth import auth, initDb, loadUser
 
 app = Flask(__name__)
@@ -249,6 +256,121 @@ def styleProfile():
 
     profile = buildStyleProfile(retriever, userId=userId, vectorStoreDir=VECTOR_STORE_DIR)
     return jsonify({"userId": userId, "styleProfile": profile})
+
+
+@app.route("/continue", methods=["POST"])
+@login_required
+def continueStory():
+    """Continue the story from the writer's last paragraph."""
+    data = request.json or {}
+
+    lastParagraph = data.get("lastParagraph", "").strip()
+    if not lastParagraph:
+        return jsonify({"error": "lastParagraph is required"}), 400
+
+    userId = str(current_user.id)
+
+    try:
+        result = continueWriting(
+            lastParagraph=lastParagraph,
+            userId=userId,
+            vectorStoreDir=VECTOR_STORE_DIR,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@app.route("/unstuck", methods=["POST"])
+@login_required
+def unstuck():
+    """Return story-grounded suggestions when the writer is stuck."""
+    data = request.json or {}
+
+    userId  = str(current_user.id)
+    context = data.get("context", "").strip()
+    count   = int(data.get("count", 3))
+
+    try:
+        result = getUnstuck(
+            userId=userId,
+            vectorStoreDir=VECTOR_STORE_DIR,
+            context=context,
+            count=count,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@app.route("/scene", methods=["POST"])
+@login_required
+def scene():
+    """Draft a scene with specific parameters in the author's voice."""
+    data = request.json or {}
+
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        return jsonify({"error": "prompt is required"}), 400
+
+    userId     = str(current_user.id)
+    characters = data.get("characters", [])   # list of character name strings
+    location   = data.get("location", "").strip()
+    mood       = data.get("mood", "").strip()
+
+    try:
+        result = writeScene(
+            prompt=prompt,
+            userId=userId,
+            vectorStoreDir=VECTOR_STORE_DIR,
+            characters=characters or None,
+            location=location,
+            mood=mood,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@app.route("/dialogue", methods=["POST"])
+@login_required
+def dialogue():
+    """Write dialogue between specific characters in the author's voice."""
+    data = request.json or {}
+
+    context = data.get("context", "").strip()
+    if not context:
+        return jsonify({"error": "context is required"}), 400
+
+    userId     = str(current_user.id)
+    characters = data.get("characters", [])   # list of character name strings
+
+    try:
+        result = writeDialogue(
+            context=context,
+            userId=userId,
+            vectorStoreDir=VECTOR_STORE_DIR,
+            characters=characters or None,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":
