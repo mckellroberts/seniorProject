@@ -131,7 +131,13 @@ def ingestForUser(
     if existing["ids"]:
         collection.delete(ids=existing["ids"])
 
-    collection.add(ids=ids, documents=documents, metadatas=metadatas)
+    batch_size = 500
+    for i in range(0, len(documents), batch_size):
+        collection.add(
+            ids=ids[i:i + batch_size],
+            documents=documents[i:i + batch_size],
+            metadatas=metadatas[i:i + batch_size],
+        )
 
     return {
         "collection": collectionName,

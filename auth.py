@@ -84,6 +84,17 @@ def initDb() -> None:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS saved_ideas (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                idea       TEXT    NOT NULL,
+                hook       TEXT,
+                fit        TEXT,
+                topic      TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
 
 def loadUser(userId: int) -> User | None:

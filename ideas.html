@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Writing Ideas — VoiceForge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #111111;
+      --surface: #1a1a1a;
+      --surface2: #222222;
+      --border: #2a2a2a;
+      --accent: #7D1D3F;
+      --accent-hover: #9B2449;
+      --accent-dim: rgba(125, 29, 63, 0.15);
+      --accent-border: rgba(125, 29, 63, 0.4);
+      --text: #e8e8e8;
+      --soft: #aaaaaa;
+      --muted: #888888;
+      --success: #27ae60;
+      --success-bg: rgba(39, 174, 96, 0.08);
+      --error: #c0392b;
+      --error-bg: rgba(192, 57, 43, 0.08);
+      --sidebar-w: 220px;
+      --sidebar-w-sm: 52px;
+      --topbar-h: 44px;
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w-sm);
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    .sidebar.expanded { width: var(--sidebar-w); }
+
+    .sidebar-header {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .toggle-btn {
+      width: 32px; height: 32px;
+      flex-shrink: 0;
+      background: none; border: none;
+      color: var(--soft);
+      cursor: pointer;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .toggle-btn:hover { background: var(--surface2); color: var(--text); }
+
+    .brand-label {
+      font-size: 1rem; font-weight: 700;
+      color: var(--text); letter-spacing: -0.5px;
+      white-space: nowrap; opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .brand-label span { color: var(--accent); }
+    .sidebar.expanded .brand-label { opacity: 1; pointer-events: auto; }
+
+    .sidebar-user {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0; min-width: 0;
+    }
+
+    .user-avatar {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: 0.8rem; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      text-transform: uppercase;
+    }
+
+    .user-info { overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+    .sidebar.expanded .user-info { opacity: 1; pointer-events: auto; }
+
+    .username {
+      font-size: 0.85rem; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-sub { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); }
+
+    .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; overflow-x: hidden; }
+
+    .nav-item {
+      width: 100%; display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      background: none; border: none;
+      color: var(--soft); font-family: var(--font-sans); font-size: 0.85rem;
+      cursor: pointer; text-align: left; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { color: var(--text); background: var(--accent-dim); }
+
+    .nav-icon {
+      width: 20px; height: 20px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .nav-label { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+    .sidebar.expanded .nav-label { opacity: 1; pointer-events: auto; }
+
+    .sidebar-footer { border-top: 1px solid var(--border); padding: 0.5rem 0; flex-shrink: 0; }
+    .nav-logout { color: var(--muted); }
+    .nav-logout:hover { color: var(--error); background: var(--error-bg); }
+
+    /* ── Main ── */
+    .main {
+      flex: 1; display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden; min-width: 0;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      height: var(--topbar-h); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
+    .topbar-brand { font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .topbar-brand span { color: var(--accent); }
+
+    .topbar-mode-pills {
+      display: flex; gap: 2px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .mode-pill {
+      background: none; border: none;
+      color: var(--muted); font-family: var(--font-sans);
+      font-size: 0.78rem; font-weight: 500;
+      padding: 0.3rem 0.65rem; border-radius: 4px;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mode-pill:hover { color: var(--soft); }
+    .mode-pill.active { background: var(--accent); color: #fff; }
+
+    /* ── Content area ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .content-inner {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .page-title {
+      font-size: 1.3rem; font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Generate panel ── */
+    .generate-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    .generate-panel-label {
+      font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted);
+    }
+    .generate-row { display: flex; gap: 0.6rem; }
+
+    .generate-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 0.55rem 0.8rem;
+      font-size: 0.9rem; outline: none;
+      transition: border-color 0.15s;
+    }
+    .generate-input:focus { border-color: var(--accent-border); }
+    .generate-input::placeholder { color: var(--muted); }
+
+    .generate-btn {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      padding: 0.55rem 1.1rem;
+      font-size: 0.9rem; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .generate-btn:hover { background: var(--accent-hover); }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .generate-status { font-size: 0.82rem; min-height: 1.2em; }
+    .generate-status.error { color: var(--error); }
+    .generate-status.info  { color: var(--soft); }
+
+    /* ── Section heading ── */
+    .section-heading {
+      font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--muted);
+      margin-bottom: 0.9rem;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--muted); font-size: 0.9rem;
+    }
+
+    /* ── Ideas list ── */
+    .ideas-list { display: flex; flex-direction: column; gap: 0.85rem; }
+
+    .idea-group { display: flex; flex-direction: column; gap: 0.6rem; }
+    .idea-group-date {
+      font-size: 0.75rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.25rem;
+    }
+
+    .idea-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1rem 0.85rem;
+      display: flex; flex-direction: column; gap: 0.45rem;
+      transition: border-color 0.15s;
+    }
+    .idea-card:hover { border-color: var(--accent-border); }
+    .idea-card.new-idea {
+      border-color: var(--accent-border);
+      background: var(--accent-dim);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .idea-text { font-size: 0.95rem; line-height: 1.5; color: var(--text); }
+    .idea-hook { font-size: 0.82rem; color: var(--soft); }
+    .idea-hook span { color: var(--muted); }
+    .idea-fit  { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+
+    .idea-meta {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-top: 0.2rem;
+    }
+    .idea-topic-tag {
+      font-size: 0.72rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.15rem 0.5rem; color: var(--muted);
+    }
+    .idea-delete-btn {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.8rem;
+      padding: 0.2rem 0.4rem; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .idea-delete-btn:hover { color: var(--error); background: var(--error-bg); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+      <span class="brand-label">Voice<span>Forge</span></span>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-info">
+        <div class="username" id="sidebarUsername">Loading...</div>
+        <div class="user-sub">writer</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" onclick="window.location.href='/'" title="Upload Files">
+        <span class="nav-icon">↑</span>
+        <span class="nav-label">Upload Files</span>
+      </button>
+      <button class="nav-item" onclick="window.location.href='/'" title="My Works">
+        <span class="nav-icon">≡</span>
+        <span class="nav-label">My Works</span>
+      </button>
+      <button class="nav-item" onclick="window.location.href='/style-page'" title="Style Profile">
+        <span class="nav-icon">◈</span>
+        <span class="nav-label">Style Profile</span>
+      </button>
+      <button class="nav-item active" onclick="window.location.href='/ideas-page'" title="Writing Ideas">
+        <span class="nav-icon">✦</span>
+        <span class="nav-label">Writing Ideas</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="window.location.href='/'" title="Demo Mode" style="color:var(--accent)">
+        <span class="nav-icon">⚗</span>
+        <span class="nav-label">Demo / Tester</span>
+      </button>
+      <button class="nav-item nav-logout" onclick="logout()" title="Sign Out">
+        <span class="nav-icon">→</span>
+        <span class="nav-label">Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-brand">Voice<span>Forge</span></span>
+        <div class="topbar-mode-pills">
+          <button class="mode-pill" onclick="window.location.href='/'">Generate</button>
+          <button class="mode-pill active">Ideas</button>
+          <button class="mode-pill" onclick="window.location.href='/'">Analyze</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Scrollable content -->
+    <div class="content">
+      <div class="content-inner">
+        <h1 class="page-title">Writing Ideas</h1>
+
+        <!-- Generate panel -->
+        <div class="generate-panel">
+          <div class="generate-panel-label">Generate New Ideas</div>
+          <div class="generate-row">
+            <input class="generate-input" id="topicInput" type="text"
+              placeholder="Optional topic or theme..." />
+            <button class="generate-btn" id="generateBtn" onclick="generateIdeas()">Generate</button>
+          </div>
+          <div class="generate-status" id="generateStatus"></div>
+        </div>
+
+        <!-- Saved ideas list -->
+        <div class="section-heading" id="historyHeading" style="display:none">Saved Ideas</div>
+        <div class="ideas-list" id="ideasList"></div>
+        <div class="empty-state" id="emptyState" style="display:none">
+          No ideas saved yet. Generate some above to get started.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const list = document.getElementById('ideasList');
+    const status = document.getElementById('generateStatus');
+    const btn = document.getElementById('generateBtn');
+    const emptyState = document.getElementById('emptyState');
+    const historyHeading = document.getElementById('historyHeading');
+
+    // ── Sidebar ────────────────────────────────────────────────────────────────
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('expanded');
+    }
+
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.replace('/login');
+    }
+
+    async function loadUser() {
+      try {
+        const res = await fetch('/auth/me');
+        if (!res.ok) { window.location.replace('/login'); return; }
+        const data = await res.json();
+        document.getElementById('sidebarUsername').textContent = data.username;
+        document.getElementById('userAvatar').textContent = data.username[0].toUpperCase();
+      } catch { window.location.replace('/login'); }
+    }
+
+    // ── Date label ─────────────────────────────────────────────────────────────
+    function dateLabel(isoStr) {
+      const d = new Date(isoStr + (isoStr.endsWith('Z') ? '' : 'Z'));
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      if (d.toDateString() === today.toDateString()) return 'Today';
+      if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // ── Build card ─────────────────────────────────────────────────────────────
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function buildCard(idea, isNew = false) {
+      const card = document.createElement('div');
+      card.className = 'idea-card' + (isNew ? ' new-idea' : '');
+      card.dataset.id = idea.id;
+
+      const text = document.createElement('div');
+      text.className = 'idea-text';
+      text.textContent = idea.idea || '';
+      card.appendChild(text);
+
+      if (idea.hook) {
+        const hook = document.createElement('div');
+        hook.className = 'idea-hook';
+        hook.innerHTML = `<span>Hook:</span> ${escHtml(idea.hook)}`;
+        card.appendChild(hook);
+      }
+      if (idea.fit) {
+        const fit = document.createElement('div');
+        fit.className = 'idea-fit';
+        fit.textContent = idea.fit;
+        card.appendChild(fit);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'idea-meta';
+
+      const tag = document.createElement('span');
+      tag.className = 'idea-topic-tag';
+      tag.textContent = idea.topic ? `# ${idea.topic}` : 'general';
+      meta.appendChild(tag);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'idea-delete-btn';
+      delBtn.textContent = 'Delete';
+      delBtn.onclick = () => deleteIdea(idea.id, card);
+      meta.appendChild(delBtn);
+
+      card.appendChild(meta);
+      return card;
+    }
+
+    // ── Render history ─────────────────────────────────────────────────────────
+    function renderHistory(ideas) {
+      list.innerHTML = '';
+      if (!ideas.length) {
+        emptyState.style.display = 'block';
+        historyHeading.style.display = 'none';
+        return;
+      }
+      emptyState.style.display = 'none';
+      historyHeading.style.display = 'block';
+
+      const groups = {};
+      ideas.forEach(idea => {
+        const label = dateLabel(idea.created_at);
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(idea);
+      });
+
+      Object.entries(groups).forEach(([label, groupIdeas]) => {
+        const group = document.createElement('div');
+        group.className = 'idea-group';
+        const heading = document.createElement('div');
+        heading.className = 'idea-group-date';
+        heading.textContent = label;
+        group.appendChild(heading);
+        groupIdeas.forEach(idea => group.appendChild(buildCard(idea)));
+        list.appendChild(group);
+      });
+    }
+
+    // ── Load history ───────────────────────────────────────────────────────────
+    async function loadHistory() {
+      try {
+        const res = await fetch('/ideas/history');
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        renderHistory(data.ideas || []);
+      } catch {
+        emptyState.style.display = 'block';
+        emptyState.textContent = 'Could not load ideas — is the server running?';
+      }
+    }
+
+    // ── Generate ───────────────────────────────────────────────────────────────
+    async function generateIdeas() {
+      const topic = document.getElementById('topicInput').value.trim();
+      btn.disabled = true;
+      btn.textContent = '...';
+      status.className = 'generate-status info';
+      status.textContent = 'Generating ideas…';
+
+      try {
+        const params = new URLSearchParams({ count: 5 });
+        if (topic) params.set('topic', topic);
+        const res = await fetch(`/ideas?${params}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          status.className = 'generate-status error';
+          status.textContent = data.error || 'Failed to generate ideas.';
+          return;
+        }
+
+        status.textContent = '';
+        const newIdeas = data.ideas || [];
+
+        if (newIdeas.length) {
+          emptyState.style.display = 'none';
+          historyHeading.style.display = 'block';
+
+          const group = document.createElement('div');
+          group.className = 'idea-group';
+          const heading = document.createElement('div');
+          heading.className = 'idea-group-date';
+          heading.textContent = 'Just now';
+          group.appendChild(heading);
+          newIdeas.forEach(idea => group.appendChild(buildCard(idea, true)));
+          list.prepend(group);
+        }
+      } catch {
+        status.className = 'generate-status error';
+        status.textContent = 'Network error — is the server running?';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate';
+      }
+    }
+
+    // ── Delete ─────────────────────────────────────────────────────────────────
+    async function deleteIdea(id, cardEl) {
+      try {
+        const res = await fetch(`/ideas/${id}`, { method: 'DELETE' });
+        if (!res.ok) return;
+        const group = cardEl.closest('.idea-group');
+        cardEl.remove();
+        if (group && group.querySelectorAll('.idea-card').length === 0) group.remove();
+        if (!list.querySelector('.idea-card')) {
+          emptyState.style.display = 'block';
+          historyHeading.style.display = 'none';
+        }
+      } catch { /* silent */ }
+    }
+
+    loadUser();
+    loadHistory();
+  </script>
+</body>
+</html>

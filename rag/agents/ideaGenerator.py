@@ -64,27 +64,42 @@ def generateIdeas(
         )
         response.raise_for_status()
         raw = response.json().get("response", "").strip()
+        print(f"[ideaGenerator] raw response ({len(raw)} chars):\n{raw[:500]}", flush=True)
     except requests.RequestException as e:
         return {"error": f"Ollama request failed: {e}",
                 "ideas": [], "ideaCount": 0, "topic": topic or "open", "raw": ""}
 
-    # Parse ideas out of the structured response
+    # Parse ideas — handle variations like **IDEA:**, "1. IDEA:", lowercase, etc.
+    import re
+
     ideas = []
     currentIdea: dict = {}
 
+    def _stripLabel(line: str, label: str) -> str:
+        """Remove a label prefix (with optional markdown, numbers, punctuation)."""
+        pattern = rf"^[\*\d\.\s]*\*{{0,2}}{label}\*{{0,2}}\s*:?\s*"
+        return re.sub(pattern, "", line, flags=re.IGNORECASE).strip()
+
     for line in raw.splitlines():
         line = line.strip()
-        if line.startswith("IDEA:"):
+        if not line:
+            continue
+        upper = line.upper().lstrip("*0123456789. ")
+        if upper.startswith("IDEA"):
             if currentIdea:
                 ideas.append(currentIdea)
-            currentIdea = {"idea": line.replace("IDEA:", "").strip()}
-        elif line.startswith("HOOK:") and currentIdea:
-            currentIdea["hook"] = line.replace("HOOK:", "").strip()
-        elif line.startswith("FIT:") and currentIdea:
-            currentIdea["fit"] = line.replace("FIT:", "").strip()
+            currentIdea = {"idea": _stripLabel(line, "IDEA")}
+        elif upper.startswith("HOOK") and currentIdea:
+            currentIdea["hook"] = _stripLabel(line, "HOOK")
+        elif upper.startswith("FIT") and currentIdea:
+            currentIdea["fit"] = _stripLabel(line, "FIT")
 
     if currentIdea:
         ideas.append(currentIdea)
+
+    # If the model ignored the format entirely, surface the raw text as one idea
+    if not ideas and raw:
+        ideas = [{"idea": raw[:300], "hook": "", "fit": ""}]
 
     return {
         "ideas":     ideas,

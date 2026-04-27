@@ -536,16 +536,61 @@
 
       /* Style hint row */
       .opts-row {
-        display: none;
+        display: flex;
         align-items: center;
         gap: 0.75rem;
         padding: 0.45rem 1rem;
         border-bottom: 1px solid var(--border);
       }
 
-      .opts-row.open {
-        display: flex;
+      /* Sources row */
+      .gen-sources {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.72rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        font-family: var(--font-mono);
+        flex-shrink: 0;
       }
+      .gen-sources span { color: var(--soft); }
+
+      /* Regenerate footer */
+      .gen-regen-footer {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        background: var(--surface);
+      }
+      .gen-regen-input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.8rem;
+        padding: 0.4rem 0.65rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .gen-regen-input:focus { border-color: var(--accent-border); }
+      .gen-regen-input::placeholder { color: var(--muted); }
+      .gen-regen-btn {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--soft);
+        font-family: var(--font-sans);
+        font-size: 0.78rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s;
+      }
+      .gen-regen-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+      .gen-regen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
       .opts-row label {
         font-family: var(--font-mono);
@@ -1485,29 +1530,13 @@
           <span class="nav-icon">≡</span>
           <span class="nav-label">My Works</span>
         </button>
-        <button class="nav-item" onclick="openModal('style')" title="Style Profile">
+        <button class="nav-item" onclick="window.location.href='/style-page'" title="Style Profile">
           <span class="nav-icon">◈</span>
           <span class="nav-label">Style Profile</span>
         </button>
-        <button class="nav-item" onclick="openModal('ideas')" title="Writing Ideas">
+        <button class="nav-item" onclick="window.location.href='/ideas-page'" title="Writing Ideas">
           <span class="nav-icon">✦</span>
           <span class="nav-label">Writing Ideas</span>
-        </button>
-        <button class="nav-item" onclick="continueFromDraft()" title="Continue Writing">
-          <span class="nav-icon">→</span>
-          <span class="nav-label">Continue Writing</span>
-        </button>
-        <button class="nav-item" onclick="openModal('unstuck')" title="I'm Stuck">
-          <span class="nav-icon">⊘</span>
-          <span class="nav-label">I'm Stuck</span>
-        </button>
-        <button class="nav-item" onclick="openModal('scene')" title="Write a Scene">
-          <span class="nav-icon">◻</span>
-          <span class="nav-label">Write a Scene</span>
-        </button>
-        <button class="nav-item" onclick="openModal('dialogue')" title="Write Dialogue">
-          <span class="nav-icon">❝</span>
-          <span class="nav-label">Write Dialogue</span>
         </button>
       </nav>
 
@@ -1532,8 +1561,8 @@
           <span class="topbar-brand">Voice<span>Forge</span></span>
           <div class="topbar-mode-pills">
             <button class="mode-pill active" data-mode="generate" onclick="setMode('generate')">Generate</button>
-            <button class="mode-pill" data-mode="ideas" onclick="setMode('ideas')">Ideas</button>
-            <button class="mode-pill" data-mode="analyze" onclick="setMode('analyze')">Analyze</button>
+            <button class="mode-pill" data-mode="ideas" onclick="window.location.href='/ideas-page'">Ideas</button>
+            <button class="mode-pill" data-mode="analyze" onclick="window.location.href='/style-page'">Analyze</button>
           </div>
         </div>
         <div class="topbar-right">
@@ -1585,6 +1614,13 @@
           <div class="gen-panel-body" id="generatedArea">
             <span class="empty-hint">Generated text will appear here</span>
           </div>
+          <div class="gen-sources" id="genSources" style="display:none">
+            Based on: <span id="sourcesList"></span>
+          </div>
+          <div class="gen-regen-footer" id="regenFooter" style="display:none">
+            <input class="gen-regen-input" id="regenInput" placeholder="What should change?" />
+            <button class="gen-regen-btn" id="regenBtn" onclick="regenerate()">Regenerate</button>
+          </div>
         </div>
 
       </div><!-- .workspace -->
@@ -1593,14 +1629,16 @@
       <div class="action-bar">
         <div class="opts-row" id="optsRow">
           <label>Style hint</label>
-          <input type="text" id="styleHintInput" placeholder="e.g. more melancholy, shorter sentences..." />
+          <input type="text" id="styleHintInput" placeholder="e.g. more direct, shorter sentences, less flowery..." />
         </div>
 
         <!-- Input row -->
         <div class="action-input-row">
           <textarea class="action-input" id="actionInput" rows="1"
             placeholder="Describe what you want written..."></textarea>
-          <button class="action-icon-btn" id="optBtn" onclick="toggleOpts()" title="Style hint">⚙</button>
+          <button class="action-icon-btn" onclick="continueFromDraft()" title="Continue Writing">→</button>
+          <button class="action-icon-btn" onclick="openModal('scene')" title="Write a Scene">◻</button>
+          <button class="action-icon-btn" onclick="openModal('dialogue')" title="Write Dialogue">❝</button>
           <button class="action-send-btn" id="sendBtn" onclick="handleSend()">↑</button>
         </div>
 
@@ -1916,6 +1954,7 @@
         sendBtn.innerHTML = '<span class="spinner"></span>';
         setGeneratedContent(null, true);
 
+        _lastPrompt = prompt;
         try {
           const res = await fetch('/generate', {
             method: 'POST',
@@ -1929,7 +1968,7 @@
           if (!res.ok || data.error) {
             setGeneratedContent(`Error: ${data.error || 'Generation failed'}`);
           } else {
-            setGeneratedContent(data.generatedText || '');
+            setGeneratedContent(data.generatedText || '', false, data.sourcesUsed || []);
             if (data.paragraphStats) updateStatsStrip(data.paragraphStats);
           }
         } catch {
@@ -1940,25 +1979,31 @@
         }
       }
 
-      function setGeneratedContent(text, loading = false) {
+      let _lastPrompt = '';
+
+      function setGeneratedContent(text, loading = false, sources = []) {
         const area = document.getElementById('generatedArea');
         const docView = document.getElementById('generatedDocView');
         const copyBtn = document.getElementById('copyBtn');
         const insertBtn = document.getElementById('insertBtn');
         const sideCopyBtn = document.getElementById('sideCopyBtn');
         const sideInsBtn = document.getElementById('sideInsertBtn');
+        const sourcesRow = document.getElementById('genSources');
+        const regenFooter = document.getElementById('regenFooter');
 
         if (loading) {
-          const loadMsg = '<span style="color:var(--muted);font-style:italic;font-size:.88rem">Generating...</span>';
-          area.innerHTML = loadMsg;
+          area.innerHTML = '<span style="color:var(--muted);font-style:italic;font-size:.88rem">Generating...</span>';
           [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
-          // Open side panel to show generation in progress
+          sourcesRow.style.display = 'none';
+          regenFooter.style.display = 'none';
           document.getElementById('genPanel').classList.add('open');
           return;
         }
         if (!text) {
           area.innerHTML = '<span class="empty-hint">Generated text will appear here</span>';
           [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'none');
+          sourcesRow.style.display = 'none';
+          regenFooter.style.display = 'none';
           return;
         }
         generatedText = text;
@@ -1966,9 +2011,28 @@
         docView.textContent = text;
         [copyBtn, insertBtn, sideCopyBtn, sideInsBtn].forEach(b => b.style.display = 'inline-block');
         document.getElementById('genTabBtn').style.color = 'var(--accent)';
-        // Reset panel title (may have been set to demo author name)
         const title = document.querySelector('.gen-panel-title');
         if (title && !text.startsWith('Error')) title.textContent = 'Generated';
+
+        if (sources && sources.length) {
+          document.getElementById('sourcesList').textContent = sources.join(', ');
+          sourcesRow.style.display = 'block';
+        } else {
+          sourcesRow.style.display = 'none';
+        }
+        regenFooter.style.display = text.startsWith('Error') ? 'none' : 'flex';
+      }
+
+      async function regenerate() {
+        const feedback = document.getElementById('regenInput').value.trim();
+        const baseHint = document.getElementById('styleHintInput').value.trim();
+        const combined = [baseHint, feedback].filter(Boolean).join(' — ');
+        document.getElementById('styleHintInput').value = combined;
+        document.getElementById('regenInput').value = '';
+        document.getElementById('regenBtn').disabled = true;
+        await doGenerate();
+        document.getElementById('regenBtn').disabled = false;
+        document.getElementById('styleHintInput').value = baseHint;
       }
 
       async function copyGenerated() {

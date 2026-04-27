@@ -1,4 +1,4 @@
-import json, requests, os, subprocess, time, secrets
+import json, requests, os, subprocess, time, secrets, sqlite3
 from pathlib import Path
 
 from flask import Flask, request, jsonify, send_from_directory, redirect, url_for, Response, stream_with_context
@@ -16,7 +16,7 @@ from rag.agents.agent import (
     writeScene,
     writeDialogue,
 )
-from auth import auth, initDb, loadUser
+from auth import auth, initDb, loadUser, DB_PATH
 
 app = Flask(__name__)
 CORS(app)
@@ -40,6 +40,7 @@ def _loadSecretKey() -> str:
 app.config["SECRET_KEY"] = _loadSecretKey()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
 # ── Flask-Login ────────────────────────────────────────────────────────────────
 loginManager = LoginManager(app)
@@ -104,6 +105,52 @@ ALLOWED_EXTENSIONS = SUPPORTED_EXTENSIONS  # {".pdf", ".txt", ".md", ".docx"}
 def allowedFile(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
+
+def _overridePath(userId: str) -> Path:
+    return BASE_DIR / "rag" / "data" / "cache" / f"{userId}_style_override.json"
+
+
+def _loadOverride(userId: str) -> dict:
+    p = _overridePath(userId)
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _saveOverride(userId: str, override: dict) -> None:
+    _overridePath(userId).write_text(json.dumps(override, indent=2))
+
+
+def _mergeProfile(base: dict, override: dict) -> dict:
+    merged = {}
+    for section in ("sentences", "vocabulary", "tone"):
+        merged[section] = {**base.get(section, {}), **override.get(section, {})}
+    return merged
+
+
+def _overrideToHint(override: dict) -> str:
+    labels = {
+        "sentences":  {"rhythm": "Sentence rhythm", "complexity": "Sentence complexity",
+                       "fragmentUse": "Fragment use", "patterns": "Structural patterns"},
+        "vocabulary": {"register": "Vocabulary register", "complexity": "Word complexity",
+                       "petWords": "Pet words and diction", "avoidances": "Avoidances"},
+        "tone":       {"primaryTone": "Primary tone", "toneRange": "Tone range",
+                       "emotionalDepth": "Emotional depth", "atmosphericWords": "Atmospheric words",
+                       "toneShifts": "Tone shifts"},
+    }
+    lines = []
+    for section, fields in labels.items():
+        for field, label in fields.items():
+            val = override.get(section, {}).get(field, "")
+            if val:
+                lines.append(f"{label}: {val}")
+    if not lines:
+        return ""
+    return "PROFILE OVERRIDES (use these instead of analyzed values):\n" + "\n".join(lines)
+
 def getUserId(req) -> str:
     try:
         json_body = req.get_json(silent=True) or {}
@@ -119,6 +166,12 @@ def getUserId(req) -> str:
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+def _getDb():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 @app.route("/login")
 def loginPage():
     return send_from_directory(".", "login.html")
@@ -128,10 +181,15 @@ def loginPage():
 def home():
     return send_from_directory(".", "index.html")
 
+@app.route("/ideas-page")
+@login_required
+def ideasPage():
+    return send_from_directory(".", "ideas.html")
+
 @app.route("/ideas", methods=["GET"])
 @login_required
 def writingIdeas():
-    """Return story/writing ideas tailored to the user's style."""
+    """Generate ideas and persist them for the current user."""
     userId = str(current_user.id)
     topic  = request.args.get("topic", "")
     count  = int(request.args.get("count", 5))
@@ -146,7 +204,43 @@ def writingIdeas():
     if "error" in result:
         return jsonify(result), 400
 
-    return jsonify(result)
+    ideas = result.get("ideas", [])
+    saved = []
+    with _getDb() as conn:
+        for idea in ideas:
+            cursor = conn.execute(
+                "INSERT INTO saved_ideas (user_id, idea, hook, fit, topic) VALUES (?, ?, ?, ?, ?)",
+                (current_user.id, idea.get("idea", ""), idea.get("hook", ""), idea.get("fit", ""), topic),
+            )
+            saved.append({**idea, "id": cursor.lastrowid})
+
+    return jsonify({**result, "ideas": saved})
+
+
+@app.route("/ideas/history", methods=["GET"])
+@login_required
+def ideasHistory():
+    """Return all previously saved ideas for the current user."""
+    with _getDb() as conn:
+        rows = conn.execute(
+            "SELECT id, idea, hook, fit, topic, created_at FROM saved_ideas WHERE user_id = ? ORDER BY created_at DESC",
+            (current_user.id,),
+        ).fetchall()
+    return jsonify({"ideas": [dict(r) for r in rows]})
+
+
+@app.route("/ideas/<int:ideaId>", methods=["DELETE"])
+@login_required
+def deleteIdea(ideaId):
+    """Delete a saved idea belonging to the current user."""
+    with _getDb() as conn:
+        deleted = conn.execute(
+            "DELETE FROM saved_ideas WHERE id = ? AND user_id = ?",
+            (ideaId, current_user.id),
+        ).rowcount
+    if not deleted:
+        return jsonify({"error": "Idea not found"}), 404
+    return jsonify({"deleted": ideaId})
 
 @app.route("/upload", methods=["POST"])
 @login_required
@@ -228,6 +322,10 @@ def generate():
     userId    = str(current_user.id)
     styleHint = data.get("styleHint", "")
 
+    overrideHint = _overrideToHint(_loadOverride(userId))
+    if overrideHint:
+        styleHint = overrideHint + ("\n\n" + styleHint if styleHint else "")
+
     try:
         result = generateInUserVoice(
             prompt=prompt,
@@ -255,6 +353,9 @@ def generateStream():
         return jsonify({"error": "prompt is required"}), 400
 
     userId = str(current_user.id)
+    overrideHint = _overrideToHint(_loadOverride(userId))
+    if overrideHint:
+        styleHint = overrideHint + ("\n\n" + styleHint if styleHint else "")
 
     @stream_with_context
     def generate():
@@ -266,21 +367,50 @@ def generateStream():
                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
+@app.route("/style-page")
+@login_required
+def stylePage():
+    return send_from_directory(".", "style.html")
+
+
 @app.route("/styleProfile", methods=["GET"])
 @login_required
 def styleProfile():
-    """Return a summary of the user's detected writing style."""
-    from rag.agents.agent import buildStyleProfile
+    """Return a full style breakdown, merged with any saved user overrides."""
+    from rag.agents.agent import _getProfiles
     userId = str(current_user.id)
-    retriever = ChromaRetriever(
-        persistDirectory=VECTOR_STORE_DIR,
-        userId=userId,
-    )
+    retriever = ChromaRetriever(persistDirectory=VECTOR_STORE_DIR, userId=userId)
     if retriever.count() == 0:
         return jsonify({"error": "No writing samples uploaded yet."}), 400
 
-    profile = buildStyleProfile(retriever, userId=userId, vectorStoreDir=VECTOR_STORE_DIR)
-    return jsonify({"userId": userId, "styleProfile": profile})
+    profile, storyPatterns, paragraphStats, characterProfiles, plotSummary, _, _ = \
+        _getProfiles(retriever, userId, VECTOR_STORE_DIR)
+
+    override = _loadOverride(userId)
+    if override:
+        profile = _mergeProfile(profile, override)
+
+    return jsonify({
+        "userId":            userId,
+        "styleProfile":      profile,
+        "paragraphStats":    paragraphStats,
+        "storyPatterns":     storyPatterns,
+        "characterProfiles": characterProfiles,
+        "plotSummary":       plotSummary,
+        "hasOverride":       bool(override),
+    })
+
+
+@app.route("/styleProfile", methods=["POST"])
+@login_required
+def saveStyleProfile():
+    """Save user edits to the style profile."""
+    data = request.json or {}
+    override = data.get("styleProfile", {})
+    if not override:
+        return jsonify({"error": "No profile data provided"}), 400
+    _saveOverride(str(current_user.id), override)
+    return jsonify({"saved": True})
 
 
 @app.route("/continue", methods=["POST"])

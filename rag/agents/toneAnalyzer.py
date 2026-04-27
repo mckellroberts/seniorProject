@@ -52,17 +52,21 @@ def analyzeTone(retriever: ChromaRetriever) -> dict:
     except requests.RequestException as e:
         return {"error": f"Ollama request failed: {e}", "raw": ""}
 
+    import re
+
+    def _extract(label: str, text: str) -> str:
+        pattern = rf"^\*{{0,2}}{re.escape(label)}\*{{0,2}}\s*:?\s*"
+        for line in text.splitlines():
+            cleaned = re.sub(pattern, "", line.strip(), flags=re.IGNORECASE).strip()
+            if cleaned and re.match(pattern, line.strip(), re.IGNORECASE):
+                return cleaned
+        return ""
+
     profile = {"raw": raw}
-    for line in raw.splitlines():
-        if line.startswith("PRIMARY_TONE:"):
-            profile["primaryTone"] = line.replace("PRIMARY_TONE:", "").strip()
-        elif line.startswith("TONE_RANGE:"):
-            profile["toneRange"] = line.replace("TONE_RANGE:", "").strip()
-        elif line.startswith("EMOTIONAL_DEPTH:"):
-            profile["emotionalDepth"] = line.replace("EMOTIONAL_DEPTH:", "").strip()
-        elif line.startswith("ATMOSPHERIC_WORDS:"):
-            profile["atmosphericWords"] = line.replace("ATMOSPHERIC_WORDS:", "").strip()
-        elif line.startswith("TONE_SHIFTS:"):
-            profile["toneShifts"] = line.replace("TONE_SHIFTS:", "").strip()
+    profile["primaryTone"]      = _extract("PRIMARY_TONE",      raw) or _extract("PRIMARY TONE",      raw)
+    profile["toneRange"]        = _extract("TONE_RANGE",        raw) or _extract("TONE RANGE",        raw)
+    profile["emotionalDepth"]   = _extract("EMOTIONAL_DEPTH",   raw) or _extract("EMOTIONAL DEPTH",   raw)
+    profile["atmosphericWords"] = _extract("ATMOSPHERIC_WORDS", raw) or _extract("ATMOSPHERIC WORDS", raw)
+    profile["toneShifts"]       = _extract("TONE_SHIFTS",       raw) or _extract("TONE SHIFTS",       raw)
 
     return profile

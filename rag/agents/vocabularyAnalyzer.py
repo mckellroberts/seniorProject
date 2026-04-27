@@ -52,17 +52,21 @@ def analyzeVocabulary(retriever: ChromaRetriever) -> dict:
     except requests.RequestException as e:
         return {"error": f"Ollama request failed: {e}", "raw": ""}
 
+    import re
+
+    def _extract(label: str, text: str) -> str:
+        pattern = rf"^\*{{0,2}}{re.escape(label)}\*{{0,2}}\s*:?\s*"
+        for line in text.splitlines():
+            cleaned = re.sub(pattern, "", line.strip(), flags=re.IGNORECASE).strip()
+            if cleaned and re.match(pattern, line.strip(), re.IGNORECASE):
+                return cleaned
+        return ""
+
     profile = {"raw": raw}
-    for line in raw.splitlines():
-        if line.startswith("REGISTER:"):
-            profile["register"] = line.replace("REGISTER:", "").strip()
-        elif line.startswith("COMPLEXITY:"):
-            profile["complexity"] = line.replace("COMPLEXITY:", "").strip()
-        elif line.startswith("PET_WORDS:"):
-            profile["petWords"] = line.replace("PET_WORDS:", "").strip()
-        elif line.startswith("DICTION:"):
-            profile["diction"] = line.replace("DICTION:", "").strip()
-        elif line.startswith("AVOIDANCES:"):
-            profile["avoidances"] = line.replace("AVOIDANCES:", "").strip()
+    profile["register"]   = _extract("REGISTER",   raw)
+    profile["complexity"] = _extract("COMPLEXITY", raw)
+    profile["petWords"]   = _extract("PET_WORDS",  raw) or _extract("PET WORDS", raw)
+    profile["diction"]    = _extract("DICTION",    raw)
+    profile["avoidances"] = _extract("AVOIDANCES", raw)
 
     return profile

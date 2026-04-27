@@ -38,13 +38,22 @@ DEMO_AUTHORS: dict[str, dict] = {
         "dir":    "janeAusten",
         "files":  ["pg158.txt"],    # Emma
         "voiceInstructions": (
-            "Use free indirect discourse — narrate from inside the character's perspective but with the author's quiet irony layered over it. "
-            "The real meaning is often the opposite of what's stated on the surface. "
-            "Social observation is the true subject; romance is merely the vehicle. "
+            "WHAT TO DO:\n"
+            "The narrator is a distinct character — wry, quietly opinionated, gently amused by everyone including the protagonist. "
+            "Use free indirect discourse: slip into a character's thoughts but keep the narrator's ironic distance layered over them. "
+            "Let irony do the work — the real meaning is often the opposite of what is stated on the surface. "
+            "Reveal character entirely through dialogue, social behavior, and what people fail to notice — not through inner analysis. "
+            "Describe appearance only with social judgment attached ('her dress was handsome, though she was not'). "
             "Alternate short, crisp declarative sentences with longer, clause-heavy reflections. "
-            "Characters expose themselves through small social missteps, word choices, and what they fail to notice. "
-            "The narrator is always gently amused, never savage. Irony should feel like politeness turned inside out. "
-            "Never editorialize — let the situation deliver the judgment."
+            "Let dialogue carry class signals, wit, and subtle condescension — characters expose themselves by how they speak.\n\n"
+            "WHAT NOT TO DO — violations of Austen's style:\n"
+            "Do NOT use lush, sensory, or gothic imagery ('ethereal in the flickering light', 'voice low as silk'). Austen understates appearance.\n"
+            "Do NOT write explicit psychological analysis ('a glimmer of wariness', 'guardedness behind the facade', 'true motivations'). "
+            "Austen never narrates psychology directly — she shows it through behavior and dialogue.\n"
+            "Do NOT use modern-sounding emotional vocabulary. No 'chemistry', no 'tension', no cinematic interiority.\n"
+            "Do NOT make the narrator invisible or neutral. The narrator has opinions and quiet judgments.\n"
+            "Do NOT take characters at face value. Everyone is slightly absurd, slightly self-deceived, or both.\n"
+            "Do NOT use generic polite dialogue. Every line should carry social nuance, class awareness, or ironic subtext."
         ),
         "prompts": [
             "Write a scene where two characters meet at a formal ball for the first time",
@@ -60,13 +69,30 @@ DEMO_AUTHORS: dict[str, dict] = {
         "dir":    "fScottFitzgerald",
         "files":  ["pg64317.txt"],  # The Great Gatsby
         "voiceInstructions": (
-            "Write in lyrical, sensory prose — every scene should have a texture of light, sound, and smell. "
-            "The narrator is simultaneously inside and outside the action: longing, observing, slightly melancholy. "
-            "Sentences build with rhythm and then break on a quietly devastating note. "
-            "Ground scenes in Jazz Age specificity: wealth, parties, beautiful people in beautiful ruin. "
-            "The underlying theme is always nostalgia and the impossibility of recapturing the past. "
-            "Alternate long, music-like sentences with short, stopped ones for emotional impact. "
-            "Beauty should feel slightly tragic — the more perfect something appears, the more doomed it is."
+            "WHAT TO DO:\n"
+            "The narrator is external and observational — like Nick Carraway, they are watching from slightly outside, "
+            "socially grounded, personally restrained. They notice details. They do not explain what those details mean.\n"
+            "Tie every emotion to a concrete physical detail: a gesture, a color of light, a sound, a specific object. "
+            "Pick one strong image and let it carry weight — then move on. Do not return to the same image.\n"
+            "Vary rhythm: plain almost blunt sentences ('People came and went without knowing his name.') "
+            "followed by sudden lyrical spikes. The contrast is the technique.\n"
+            "Let the meaning emerge from what is shown, never from what is stated. "
+            "The reader should feel the disillusionment without being told about it.\n"
+            "Ground every scene in specific sensory detail tied to the Jazz Age: "
+            "wealth, light, music, beautiful surfaces concealing emptiness.\n\n"
+            "WHAT NOT TO DO — violations of Fitzgerald's style:\n"
+            "Do NOT use abstract philosophical language. Never write 'disillusionment', 'fragility of existence', "
+            "'erosion of conviction', 'crushing reality of human experience', or similar abstractions. "
+            "These are conclusions. Fitzgerald shows; he does not conclude.\n"
+            "Do NOT repeat the same metaphor or concept. If you use fragility once, never use it again. "
+            "Stacking the same image ('fragile vessel', 'fragile glass', 'shards of fragility') kills the effect.\n"
+            "Do NOT write an internal, philosophizing narrator. The narrator watches from outside. "
+            "They do not analyze their own psychology or drift into isolated introspection.\n"
+            "Do NOT state the moral or meaning at the end. No explicit conclusions about disappointment, illusion, or the human condition. "
+            "End on a concrete image or action, not a summary.\n"
+            "Do NOT use modern settings (fluorescent-lit libraries, contemporary spaces). "
+            "Stay in the sensory world of the 1920s — parties, water, light, old money, beautiful ruin.\n"
+            "Do NOT pile metaphors. One precise image beats three ornate ones every time."
         ),
         "prompts": [
             "Write a scene describing a lavish party where the host seems oddly detached from it all",
